@@ -6,7 +6,7 @@ import (
 	"io"
 	"strings"
 
-	"github.com/aporeto-inc/trireme/enforcer/utils/tokens"
+	"github.com/aporeto-inc/trireme-lib/enforcer/utils/tokens"
 )
 
 // GenerateNodeName generates a valid Trireme ID for this instance of the enforcer.

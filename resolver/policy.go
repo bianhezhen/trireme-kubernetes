@@ -9,9 +9,9 @@ import (
 	"github.com/aporeto-inc/trireme-kubernetes/kubernetes"
 
 	"github.com/aporeto-inc/kubepox"
-	"github.com/aporeto-inc/trireme"
-	"github.com/aporeto-inc/trireme/monitor"
-	"github.com/aporeto-inc/trireme/policy"
+	trireme "github.com/aporeto-inc/trireme-lib"
+	"github.com/aporeto-inc/trireme-lib/monitor"
+	"github.com/aporeto-inc/trireme-lib/policy"
 
 	api "k8s.io/api/core/v1"
 	networking "k8s.io/api/networking/v1"

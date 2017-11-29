@@ -15,11 +15,10 @@ import (
 	"github.com/aporeto-inc/trireme-kubernetes/utils"
 	"github.com/aporeto-inc/trireme-kubernetes/version"
 
-	"github.com/aporeto-inc/trireme"
-	"github.com/aporeto-inc/trireme/cmd/remoteenforcer"
-	"github.com/aporeto-inc/trireme/configurator"
-	tlog "github.com/aporeto-inc/trireme/log"
-	"github.com/aporeto-inc/trireme/monitor"
+	trireme "github.com/aporeto-inc/trireme-lib"
+	"github.com/aporeto-inc/trireme-lib/configurator"
+	tlog "github.com/aporeto-inc/trireme-lib/log"
+	"github.com/aporeto-inc/trireme-lib/monitor"
 
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
@@ -63,7 +62,11 @@ func main() {
 
 	if config.Enforce {
 		zap.L().Info("Launching in enforcer mode")
-		remoteenforcer.LaunchRemoteEnforcer(nil)
+
+		if err := trireme.LaunchRemoteEnforcer(nil); err != nil {
+			zap.L().Fatal("Unable to start enforcer", zap.Error(err))
+		}
+
 		return
 	}
 

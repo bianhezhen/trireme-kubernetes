@@ -5,7 +5,7 @@ import (
 
 	"go.uber.org/zap"
 
-	"github.com/aporeto-inc/trireme/policy"
+	"github.com/aporeto-inc/trireme-lib/policy"
 
 	api "k8s.io/api/core/v1"
 	networking "k8s.io/api/networking/v1"
@@ -514,7 +514,7 @@ func generatePUPolicy(ingressKubeRules *[]networking.NetworkPolicyIngressRule, e
 	}
 
 	excluded := []string{}
-	containerPolicy := policy.NewPUPolicy("", policy.Police, egressACLs, ingressACLs, egressRulesList, ingressRulesList, tags, tags, ips, triremeNets, excluded)
+	containerPolicy := policy.NewPUPolicy("", policy.Police, egressACLs, ingressACLs, egressRulesList, ingressRulesList, tags, tags, ips, triremeNets, excluded, nil)
 
 	logRules(containerPolicy)
 	return containerPolicy, nil
@@ -573,7 +573,7 @@ func allowAllPolicy(tags *policy.TagStore, ips policy.ExtendedMap, triremeNets [
 	ingressACLs := allowAllACLs
 	egressACLs := allowAllACLs
 
-	return policy.NewPUPolicy("", policy.Police, ingressACLs, egressACLs, nil, receivingRules, tags, tags, ips, triremeNets, nil)
+	return policy.NewPUPolicy("", policy.Police, ingressACLs, egressACLs, nil, receivingRules, tags, tags, ips, triremeNets, nil, nil)
 }
 
 // notInfraContainerPolicy is a policy that should apply to the other containers in a pod that are not the infra container.
