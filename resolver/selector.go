@@ -514,7 +514,8 @@ func generatePUPolicy(ingressKubeRules *[]networking.NetworkPolicyIngressRule, e
 	}
 
 	excluded := []string{}
-	containerPolicy := policy.NewPUPolicy("", policy.Police, egressACLs, ingressACLs, egressRulesList, ingressRulesList, tags, tags, ips, triremeNets, excluded, nil)
+
+	containerPolicy := policy.NewPUPolicy("", policy.Police, egressACLs, ingressACLs, egressRulesList, ingressRulesList, tags, tags, ips, triremeNets, excluded)
 
 	logRules(containerPolicy)
 	return containerPolicy, nil
@@ -573,7 +574,9 @@ func allowAllPolicy(tags *policy.TagStore, ips policy.ExtendedMap, triremeNets [
 	ingressACLs := allowAllACLs
 	egressACLs := allowAllACLs
 
-	return policy.NewPUPolicy("", policy.Police, ingressACLs, egressACLs, nil, receivingRules, tags, tags, ips, triremeNets, nil, nil)
+	excluded := []string{}
+
+	return policy.NewPUPolicy("", policy.Police, ingressACLs, egressACLs, nil, receivingRules, tags, tags, ips, triremeNets, excluded)
 }
 
 // notInfraContainerPolicy is a policy that should apply to the other containers in a pod that are not the infra container.

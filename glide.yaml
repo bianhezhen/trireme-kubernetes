@@ -2,7 +2,7 @@ package: github.com/aporeto-inc/trireme-kubernetes
 import:
   ## Aporeto
 - package: github.com/aporeto-inc/trireme-lib
-  version: 3.x.x
+  version: 2.10.0
 - package: github.com/aporeto-inc/kubepox
 - package: github.com/aporeto-inc/trireme-csr
 - package: github.com/aporeto-inc/trireme-statistics
