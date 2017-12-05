@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
        - image: chronograf:latest
-         command: ["chronograf","--influxdb-url=$TRIREME_INFLUXURL"]
+         command: ["chronograf","--influxdb-url=$(TRIREME_INFLUXURL)"]
          imagePullPolicy: Always
          name: trireme-chronograf
          env:
