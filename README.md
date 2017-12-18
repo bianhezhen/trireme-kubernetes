@@ -4,7 +4,6 @@
 [![Twitter URL](https://img.shields.io/badge/twitter-follow-blue.svg)](https://twitter.com/aporeto_trireme) [![Slack URL](https://img.shields.io/badge/slack-join-green.svg)](https://triremehq.slack.com/messages/general/) [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](https://www.apache.org/licenses/LICENSE-2.0) [![Documentation](https://img.shields.io/badge/docs-godoc-blue.svg)](https://godoc.org/github.com/aporeto-inc/trireme)
 [![Analytics](https://ga-beacon.appspot.com/UA-90327502-1/welcome-page)](https://github.com/igrigorik/ga-beacon)
 
-<img src="https://www.aporeto.com/wp-content/uploads/2016/10/trireme-logo-final-b.png" width="200">
 
 ----
 
@@ -122,7 +121,7 @@ Trireme-kubernetes does not rely on any distributed control-plane or setup (no n
 
 
 ## Advanced deployment and installation options.
-
+ 
 Trireme-Kubernetes [can be deployed](https://github.com/aporeto-inc/trireme-kubernetes/tree/master/deployment) as:
 
 * Fully managed by Kubernetes as a `daemonSet`. (recommended deployment)
@@ -136,3 +135,9 @@ Trireme-Kubernetes [can be deployed](https://github.com/aporeto-inc/trireme-kube
 * Trireme requires access to the Docker event API socket (`/var/run/docker.sock` by default)
 * Trireme requires privileged access.
 * When deploying with the DaemonSet model, Trireme requires access to the in-cluster service API/Token. The Namespaces/Pods/NetworkPolicies must be available as read-only
+
+## External materials
+
+* [Slides introducing Trireme-Kubernetes](https://github.com/bvandewalle/kubecon-zerotrust/blob/master/KubeCon%20-%20ZeroTrust.pdf)
+* [Talk at Kubecon Berlin (april 2017)](https://www.youtube.com/watch?v=wm7rj2zhXM0&list=PL83F1zbzRHa8gDtbI5zoPpol9bTEIw3Xh)
+* [Application segmentation with Trireme for Openshift commons](https://www.youtube.com/watch?v=EjAib6MrW60)
