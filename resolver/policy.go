@@ -10,8 +10,8 @@ import (
 
 	"github.com/aporeto-inc/kubepox"
 	trireme "github.com/aporeto-inc/trireme-lib"
-	"github.com/aporeto-inc/trireme-lib/monitor"
 	"github.com/aporeto-inc/trireme-lib/policy"
+	"github.com/aporeto-inc/trireme-lib/rpc/events"
 
 	api "k8s.io/api/core/v1"
 	networking "k8s.io/api/networking/v1"
@@ -129,7 +129,7 @@ func (k *KubernetesPolicy) ResolvePolicy(contextID string, runtimeGetter policy.
 }
 
 // HandlePUEvent  is called by Trireme for notification that a specific PU got an event.
-func (k *KubernetesPolicy) HandlePUEvent(contextID string, eventType monitor.Event) {
+func (k *KubernetesPolicy) HandlePUEvent(contextID string, eventType events.Event) {
 	zap.L().Debug("Trireme Container Event", zap.String("contextID", contextID), zap.Any("eventType", eventType))
 }
 

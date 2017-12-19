@@ -6,6 +6,7 @@ import (
 	"os"
 	"strings"
 
+	trireme "github.com/aporeto-inc/trireme-lib"
 	"github.com/spf13/viper"
 
 	flag "github.com/spf13/pflag"
@@ -13,6 +14,9 @@ import (
 
 // DefaultKubeConfigLocation is the default location of the KubeConfig file.
 const DefaultKubeConfigLocation = "/.kube/config"
+
+// TriremeEnvPrefix is the prefix used to provide configuration through env variables.
+const TriremeEnvPrefix = "TRIREME"
 
 // Configuration contains all the User Parameter for Trireme-Kubernetes.
 type Configuration struct {
@@ -105,7 +109,7 @@ func LoadConfig() (*Configuration, error) {
 	// Binding ENV variables
 	// Each config will be of format TRIREME_XYZ as env variable, where XYZ
 	// is the upper case config.
-	viper.SetEnvPrefix("TRIREME")
+	viper.SetEnvPrefix(TriremeEnvPrefix)
 	viper.AutomaticEnv()
 
 	// Binding CLI flags.
@@ -133,7 +137,20 @@ func LoadConfig() (*Configuration, error) {
 		return nil, err
 	}
 
+	// unset current Trireme Env variables as to keep a clean state for the remote enforcer process.
+	unsetEnvVar(TriremeEnvPrefix)
+
+	setupTriremeSubProcessArgs(&config)
+
 	return &config, nil
+}
+
+// setupTriremeSubProcessArgs setups the logs for the remote Enforcer
+func setupTriremeSubProcessArgs(config *Configuration) {
+	logToConsole := true
+	logWithID := false
+
+	trireme.SetLogParameters(logToConsole, logWithID, config.LogLevel, config.LogFormat)
 }
 
 // validateConfig is validating the Configuration struct.
@@ -185,4 +202,21 @@ func parseTriremeNets(nets string) ([]string, error) {
 		}
 	}
 	return resultNets, nil
+}
+
+// unsetEnvVar unsets all env variables with a specific prefix.
+// Usage inside Trireme is to unset all Trireme env variables so
+// that the remote doesn't get confused.
+func unsetEnvVar(prefix string) {
+	env := os.Environ()
+	for _, e := range env {
+		if strings.HasPrefix(e, prefix) {
+			kv := strings.Split(e, "=")
+			if len(kv) > 0 {
+				if err := os.Unsetenv(kv[0]); err != nil {
+					continue
+				}
+			}
+		}
+	}
 }

@@ -9,16 +9,16 @@ import (
 	"time"
 
 	"github.com/aporeto-inc/trireme-kubernetes/auth"
-	"github.com/aporeto-inc/trireme-kubernetes/collector"
+	kubecollector "github.com/aporeto-inc/trireme-kubernetes/collector"
 	"github.com/aporeto-inc/trireme-kubernetes/config"
 	"github.com/aporeto-inc/trireme-kubernetes/resolver"
 	"github.com/aporeto-inc/trireme-kubernetes/utils"
 	"github.com/aporeto-inc/trireme-kubernetes/version"
 
 	trireme "github.com/aporeto-inc/trireme-lib"
-	"github.com/aporeto-inc/trireme-lib/configurator"
-	tlog "github.com/aporeto-inc/trireme-lib/log"
-	"github.com/aporeto-inc/trireme-lib/monitor"
+	"github.com/aporeto-inc/trireme-lib/collector"
+	"github.com/aporeto-inc/trireme-lib/enforcer/utils/fqconfig"
+	"github.com/aporeto-inc/trireme-lib/enforcer/utils/secrets"
 
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
@@ -42,114 +42,94 @@ _______________________________________________________________
 `, version, revision)
 }
 
-func main() {
-
-	config, err := config.LoadConfig()
-	if err != nil {
-		log.Fatalf("Error loading config: %s", err)
-	}
-
-	if !config.Enforce {
-		banner(version.VERSION, version.REVISION)
-	}
-
-	err = setLogs(config.LogFormat, config.LogLevel)
-	if err != nil {
-		log.Fatalf("Error setting up logs: %s", err)
-	}
+// launch is used when this trireme-kubernetes process is launched as the main Trireme-Kubernetes
+// process on the node. This Trireme-Kubernetes process will set everything up and orchestrate the launch
+// of the other Trireme-Kubernetes process on the node (Container specific)
+func launch(config *config.Configuration) {
+	banner(version.VERSION, version.REVISION)
 
 	zap.L().Debug("Config used", zap.Any("Config", config))
 
-	if config.Enforce {
-		zap.L().Info("Launching in enforcer mode")
-
-		if err := trireme.LaunchRemoteEnforcer(nil); err != nil {
-			zap.L().Fatal("Unable to start enforcer", zap.Error(err))
-		}
-
-		return
-	}
+	// Generate a unique NodeName used internally to Trireme.
+	triremeNodeName := utils.GenerateNodeName(config.KubeNodeName)
 
 	// Create New PolicyEngine based on Kubernetes rules.
-	kubernetesPolicy, err := resolver.NewKubernetesPolicy(config.KubeconfigPath, config.KubeNodeName, config.ParsedTriremeNetworks, config.BetaNetPolicies, config.EgressNetPolicies)
+	kubernetesPolicyResolver, err := resolver.NewKubernetesPolicy(config.KubeconfigPath, config.KubeNodeName, config.ParsedTriremeNetworks, config.BetaNetPolicies, config.EgressNetPolicies)
 	if err != nil {
 		zap.L().Fatal("Error initializing KubernetesPolicy: ", zap.Error(err))
 	}
 
-	var trireme trireme.Trireme
-	var monitor monitor.Monitor
-
-	triremeNodeName := utils.GenerateNodeName(config.KubeNodeName)
-
-	// Instantiating LibTrireme
-	options := configurator.DefaultTriremeOptions()
-	options.ServerID = triremeNodeName
-	options.TargetNetworks = config.ParsedTriremeNetworks
-	options.RemoteContainer = true
-	options.LocalContainer = false
-	options.LocalProcess = false
-	options.SyncAtStart = true
-	options.KillContainerError = false
-	options.Resolver = kubernetesPolicy
-
 	// Setting up the EventCollector based on the user Config
+	var collectorInstance collector.EventCollector
 	if config.CollectorEndpoint != "" {
-		options.EventCollector = collector.NewInfluxDBCollector(config.CollectorUser, config.CollectorPass, config.CollectorEndpoint, config.CollectorDB, config.CollectorInsecureSkipVerify)
+		zap.L().Info("Initializing Trireme with InfluxDBCollector")
+		collectorInstance = kubecollector.NewInfluxDBCollector(config.CollectorUser, config.CollectorPass, config.CollectorEndpoint, config.CollectorDB, config.CollectorInsecureSkipVerify)
 	} else {
-		options.EventCollector = collector.NewDefaultCollector()
+		zap.L().Info("Initializing Trireme with Default collector")
+		collectorInstance = kubecollector.NewDefaultCollector()
 	}
 
+	// Setting up Auth type based on user config.
+	var triremesecret secrets.Secrets
 	if config.AuthType == "PSK" {
-		zap.L().Info("Initializing Trireme with PSK Auth")
+		zap.L().Info("Initializing Trireme with PSK Auth. Should NOT be used in production")
 
-		options.PKI = false
-		options.PSK = []byte(config.PSK)
-
-		triremeResult, err := configurator.NewTriremeWithOptions(options)
-		if err != nil {
-			zap.L().Fatal("Error instantiating libtrireme", zap.Error(err))
-		}
-
-		trireme = triremeResult.Trireme
-		monitor = triremeResult.DockerMonitor
+		triremesecret = secrets.NewPSKSecrets([]byte(config.PSK))
 
 	}
-
 	if config.AuthType == "PKI" {
 		zap.L().Info("Initializing Trireme with PKI Auth")
 
 		// Load the PKI Certs/Keys based on config.
 		pki, err := auth.LoadPKI(config.KubeNodeName, config.KubeconfigPath)
 		if err != nil {
-			zap.L().Fatal("Error loading Certificates for PKI Trireme", zap.Error(err))
+			zap.L().Fatal("error loading Certificates for PKI Trireme", zap.Error(err))
 		}
 
-		options.PKI = true
-		options.KeyPEM = pki.KeyPEM
-		options.CertPEM = pki.CertPEM
-		options.CaCertPEM = pki.CaCertPEM
-		options.SmartToken = pki.SmartToken
-
-		zap.L().Debug("CryptoCert used: ", zap.Any("options.CertPEM", options.CertPEM), zap.Any("options.CaCertPEM", options.CaCertPEM), zap.Any("options.SmartToken", options.SmartToken))
-
-		triremeResult, err := configurator.NewTriremeWithOptions(options)
+		triremesecret, err = secrets.NewCompactPKIWithTokenCA(pki.KeyPEM, pki.CertPEM, pki.CaCertPEM, [][]byte{[]byte(pki.CaCertPEM)}, pki.SmartToken)
 		if err != nil {
-			zap.L().Fatal("Error instantiating libtrireme", zap.Error(err))
+			zap.L().Fatal("error creating PKI Secret for Trireme", zap.Error(err))
 		}
+	}
 
-		trireme = triremeResult.Trireme
-		monitor = triremeResult.DockerMonitor
+	// FilterQueue configuration
+	fqConfig := fqconfig.NewFilterQueueWithDefaults()
+
+	// Monitor configuration
+	monitorOptions := []trireme.MonitorOption{
+		trireme.OptionMonitorDocker(
+			trireme.SubOptionMonitorDockerFlags(true, false),
+		),
+	}
+
+	// Trireme configuration
+	triremeOptions := []trireme.Option{
+		trireme.OptionSecret(triremesecret),
+		trireme.OptionPolicyResolver(kubernetesPolicyResolver),
+		trireme.OptionEnforceFqConfig(fqConfig),
+		trireme.OptionCollector(collectorInstance),
+		trireme.OptionMonitors(
+			trireme.NewMonitor(monitorOptions...),
+		),
+	}
+
+	// Trace loglevel means we want to see the details of every packet.
+	if config.LogLevel == "trace" {
+		triremeOptions = append(triremeOptions, trireme.OptionPacketLogs())
+	}
+
+	t := trireme.New(triremeNodeName, triremeOptions...)
+	if t == nil {
+		zap.L().Fatal("Unable to initialize trireme")
 	}
 
 	// Register Trireme to the Kubernetes policy resolver
-	kubernetesPolicy.SetPolicyUpdater(trireme)
+	kubernetesPolicyResolver.SetPolicyUpdater(t)
 
 	// Start all the go routines.
-	trireme.Start()
+	t.Start()
 	zap.L().Debug("Trireme started")
-	monitor.Start()
-	zap.L().Debug("Monitor started")
-	kubernetesPolicy.Run()
+	kubernetesPolicyResolver.Run()
 	zap.L().Debug("PolicyResolver started")
 
 	c := make(chan os.Signal, 1)
@@ -159,17 +139,28 @@ func main() {
 	<-c
 
 	zap.L().Debug("Stop signal received")
-	kubernetesPolicy.Stop()
+	kubernetesPolicyResolver.Stop()
 	zap.L().Debug("KubernetesPolicy stopped")
-	monitor.Stop()
-	zap.L().Debug("Monitor stopped")
-	trireme.Stop()
+	t.Stop()
 	zap.L().Debug("Trireme stopped")
 
 	zap.L().Info("Everything stopped. Bye Kubernetes!")
 }
 
-// setLogs setups Zap to
+// enforce is used when this trireme-kubernetes process is launched in "Enforce" mode.
+// In this mode, the process is typically launched specifically for one single container
+// in a specific Container namespace.
+func enforce() {
+	zap.L().Info("Launching in enforcer mode")
+
+	if err := trireme.LaunchRemoteEnforcer(nil); err != nil {
+		zap.L().Fatal("Unable to start enforcer", zap.Error(err))
+	}
+
+	return
+}
+
+// setLogs setups Zap to the correct log level and correct output format.
 func setLogs(logFormat, logLevel string) error {
 	var zapConfig zap.Config
 
@@ -188,7 +179,7 @@ func setLogs(logFormat, logLevel string) error {
 	// Set the logger
 	switch logLevel {
 	case "trace":
-		tlog.Trace = true
+		// TODO: Set the level correctly
 		zapConfig.Level = zap.NewAtomicLevelAt(zap.DebugLevel)
 	case "debug":
 		zapConfig.Level = zap.NewAtomicLevelAt(zap.DebugLevel)
@@ -211,4 +202,28 @@ func setLogs(logFormat, logLevel string) error {
 
 	zap.ReplaceGlobals(logger)
 	return nil
+}
+
+// main is setting up the basics and check if this process is launched
+// as Enforce or as the Main launcher
+func main() {
+	config, err := config.LoadConfig()
+	if err != nil {
+		log.Fatalf("Error loading config: %s", err)
+	}
+
+	if config.Enforce {
+		_, _, config.LogLevel, config.LogFormat = trireme.GetLogParameters()
+	}
+
+	err = setLogs(config.LogFormat, config.LogLevel)
+	if err != nil {
+		log.Fatalf("Error setting up logs: %s", err)
+	}
+
+	if config.Enforce {
+		enforce()
+	} else {
+		launch(config)
+	}
 }

@@ -2,11 +2,12 @@ package: github.com/aporeto-inc/trireme-kubernetes
 import:
   ## Aporeto
 - package: github.com/aporeto-inc/trireme-lib
-  version: 2.10.0
+  version: add_debug_remote
 - package: github.com/aporeto-inc/kubepox
 - package: github.com/aporeto-inc/trireme-csr
 - package: github.com/aporeto-inc/trireme-statistics
 
+  ## Aporeto
 - package: k8s.io/apimachinery
   subpackages:
   - pkg/apis/meta/v1
