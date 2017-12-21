@@ -24,9 +24,6 @@ type Configuration struct {
 	AuthType string
 	// KubeNodeName is the identifier used for this Trireme instance
 	KubeNodeName string
-
-	SigningCACert     string
-	SigningCACertData []byte
 	// PSK is the PSK used for Trireme (if using PSK)
 	PSK string
 	// RemoteEnforcer defines if the enforcer is spawned into each POD namespace
