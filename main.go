@@ -179,7 +179,6 @@ func setLogs(logFormat, logLevel string) error {
 	// Set the logger
 	switch logLevel {
 	case "trace":
-		// TODO: Set the level correctly
 		zapConfig.Level = zap.NewAtomicLevelAt(zap.DebugLevel)
 	case "debug":
 		zapConfig.Level = zap.NewAtomicLevelAt(zap.DebugLevel)
