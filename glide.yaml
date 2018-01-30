@@ -2,7 +2,7 @@ package: github.com/aporeto-inc/trireme-kubernetes
 import:
   ## Aporeto
 - package: github.com/aporeto-inc/trireme-lib
-  version: add_debug_remote
+  version: ^6.x
 - package: github.com/aporeto-inc/kubepox
 - package: github.com/aporeto-inc/trireme-csr
 - package: github.com/aporeto-inc/trireme-statistics
@@ -17,7 +17,7 @@ import:
   - pkg/selection
   - pkg/watch
 - package: k8s.io/client-go
-  version: ^5.0.0
+  version: ^6.0.0
   subpackages:
   - kubernetes
   - rest
