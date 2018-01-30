@@ -302,6 +302,10 @@ func aclEgressRules(rule networking.NetworkPolicyEgressRule) ([]policy.IPRule, e
 }
 
 func generateIngressRulesList(ingressKubeRules *[]networking.NetworkPolicyIngressRule, podNamespace string, allNamespaces *api.NamespaceList, tags *policy.TagStore, ips policy.ExtendedMap, triremeNets []string, betaPolicies bool) ([]policy.TagSelector, []policy.IPRule, error) {
+	if ingressKubeRules == nil {
+		return rulesAndACLsAllowAll()
+	}
+
 	if !betaPolicies && len(*ingressKubeRules) == 0 {
 		return rulesAndACLsAllowAll()
 	}
@@ -352,6 +356,10 @@ func generateIngressRulesList(ingressKubeRules *[]networking.NetworkPolicyIngres
 }
 
 func generateEgressRulesList(egressKubeRules *[]networking.NetworkPolicyEgressRule, podNamespace string, allNamespaces *api.NamespaceList, tags *policy.TagStore, ips policy.ExtendedMap, triremeNets []string, betaPolicies bool) ([]policy.TagSelector, []policy.IPRule, error) {
+	if egressKubeRules == nil {
+		return rulesAndACLsAllowAll()
+	}
+
 	if !betaPolicies && len(*egressKubeRules) == 0 {
 		return rulesAndACLsAllowAll()
 	}
