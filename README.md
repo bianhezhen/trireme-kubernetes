@@ -8,7 +8,7 @@
 
 ----
 
-Trireme-Kubernetes is a simple, straightforward implementation of Kubernetes Network Policies. Yet, it is independent from and work with any networking backend.
+Trireme-Kubernetes is a simple, straightforward implementation of the _Kubernetes Network Policies_ specifications. Yet, it is independent from the used networking backend and works in any Kubernetes cluster.
 
 Trireme-Kubernetes builds upon a powerful concept of identity based on standard Kubernetes tags.
 
@@ -25,16 +25,16 @@ Trireme-Kubernetes is provided as a bundle with a set of optional addons:
 
 ![Kubernetes-Trireme ecosystem](docs/architecture.png)
 
-* Trireme-Kubernetes: The enforcement service which police flows based on standard NetworkPolicies defined on Kubernetes API
+* Trireme-Kubernetes: the enforcement service which polices flows based on standard NetworkPolicies defined on the Kubernetes API
 
-* [Trireme-CSR](https://github.com/aporeto-inc/trireme-csr): An identity service that is used in order to automatically generate certificates and asymetric keypair for each Trireme-Kubernetes instance
+* [Trireme-CSR](https://github.com/aporeto-inc/trireme-csr): an identity service that is used in order to automatically generate certificates and asymmetric keypairs for each Trireme-Kubernetes instance
 
-* [Trireme-Statistics](https://github.com/aporeto-inc/trireme-statistics) bundle: Monitoring and statistics bundle that rely on InfluxDB. Flows and Container events can be displayed in either Grafana, Chronograf or a generated graph specifically for Kubernetes flows. Depending on your use-case, some or all of those frontend tools can be deployed.
+* [Trireme-Statistics](https://github.com/aporeto-inc/trireme-statistics) bundle: the monitoring and statistics bundle that relies on InfluxDB. Flows and Container events can be displayed in either Grafana, Chronograf or a generated graph specifically for Kubernetes flows. Depending on your use-case, some or all of those frontend tools can be deployed.
 
 ## Getting started with Trireme-Kubernetes
 
 Trireme-Kubernetes is focused on being simple and Straightforward to deploy.
-For any serious deployment, the extensive deployment guide should be followed
+For any serious deployment, the [extensive deployment guide](deployment/README.md) should be followed.
 
 This section provides a quick and easy way to try Kubernetes.
 
@@ -61,7 +61,7 @@ kubectl create -f config.yaml
 kubectl create -f statistics
 ```
 
-4) Create a dummy Self-signed `Certificate Authority` for the identity service and adds it as a Kubernetes secret(requires the [tg](https://github.com/aporeto-inc/tg) utility):
+4) Create a dummy Self-signed `Certificate Authority` for the identity service and add it as a Kubernetes secret (requires the [tg](https://github.com/aporeto-inc/tg) utility - quick install: `go get -u github.com/aporeto-inc/tg`):
 ```
 ./gen_pki_ca.sh
 ```
@@ -106,7 +106,7 @@ The beer of the day is:  "Rochefort Trappistes 10"
 [...]
 ```
 
-And as defined by the policy, only `frontend` is able to connect. `external` logs shows that it was unable to connect to `backend`:
+And as defined by the policy, only `frontend` is able to connect. `external` logs show that it was unable to connect to `backend`:
 
 ```
 $ kubectl logs external-bww23 -n beer
@@ -114,15 +114,15 @@ $ kubectl logs external-bww23 -n beer
 
 ## Kubernetes and Trireme
 
-Kubernetes does not enforce natively NetworkPolicies and requires a third party solution to do so.
+Kubernetes does not enforce natively NetworkPolicies and requires a third party solution/controller to do so.
 
-Unlike most of the traditional solutions, Trireme is not tight together with a complex networking solution. It therefore gives you the freedom to use one Networking implementation if needed and another NetworkPolicy provider.
+Unlike most of the traditional solutions, Trireme is not tight together with a complex networking solution. It therefore gives you the freedom to use one Networking implementation if needed and another NetworkPolicy provider. It acts as the controller to enforce the defined Kubernetes network policies.
 
-Trireme-kubernetes does not rely on any distributed control-plane or setup (no need to plug into `etcd`). Enforcement is performed directly on every node without any shared state propagation (more info at  [Trireme ](https://github.com/aporeto-inc/trireme))
+Trireme-kubernetes does not rely on any distributed control-plane or setup (no need to plug into `etcd`). Enforcement is performed directly on every node without any shared state propagation (more info at  [Trireme ](https://github.com/aporeto-inc/trireme-lib))
 
 
 ## Advanced deployment and installation options.
- 
+
 Trireme-Kubernetes [can be deployed](https://github.com/aporeto-inc/trireme-kubernetes/tree/master/deployment) as:
 
 * Fully managed by Kubernetes as a `daemonSet`. (recommended deployment)
