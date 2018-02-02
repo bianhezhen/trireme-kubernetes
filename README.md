@@ -47,12 +47,12 @@ Trireme-Kubernetes consists of several components - not all of them are required
 * Trireme requires the `ipset` utility to be installed
 * Trireme requires access to the Docker event API socket (`/var/run/docker.sock` by default)
 * Trireme requires privileged access.
-* When deploying with the `DaemonSet` model (default and recommended), Trireme requires access to the in-cluster service API Token. The Namespaces/Pods/NetworkPolicies must be available as read-only. Note that the default deployment takes care of this.
+* When deploying with the `DaemonSet` model (default and recommended), Trireme requires access to the in-cluster Kubernetes service API Token of its pod. Access to the Kubernetes Namespaces/Pods/NetworkPolicies must be available as read-only. **NOTE:** the default deployment takes care of this.
 
 
 ## Getting Started
 
-Trireme-Kubernetes is focused on being simple and Straightforward to deploy.
+Trireme-Kubernetes is focused on being simple and straight forward to deploy.
 **NOTE:** for any serious deployment, the [extensive deployment guide](deployment/README.md) should be followed.
 
 This section provides a quick and easy way to try Trireme-Kubernetes in your existing cluster.
@@ -148,7 +148,7 @@ Trireme-kubernetes does not rely on any distributed control-plane or setup (no n
 
 Trireme-Kubernetes [can be deployed](https://github.com/aporeto-inc/trireme-kubernetes/tree/master/deployment) as:
 
-* Fully managed by Kubernetes as a `daemonSet`. (recommended deployment)
+* Fully managed by Kubernetes as a `DaemonSet`. (recommended deployment)
 * A standalone daemon process on each node.
 * A docker container managed outside Kubernetes on each node.
 
