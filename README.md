@@ -26,24 +26,25 @@ It is based on the [Trireme Zero-Trust library](https://github.com/aporeto-inc/t
 
 ## Architecture and Components
 
-The architecture of Trireme-Kubernetes is the following - not all components are required:
+The architecture of Trireme-Kubernetes is the following:
 
 ![Trireme-Kubernetes-Architecture](docs/trireme-kubernetes-architecture.png)
 
-It consists of several components - not all of them are required:
+Trireme-Kubernetes consists of several components - not all of them are required:
 
 * [Trireme-Kubernetes](https://github.com/aporeto-inc/trireme-kubernetes): the enforcement service which polices network connections (a.k.a "flows" in Trireme terminology) based on standard `NetworkPolicies` defined on the Kubernetes API
 
-* [Trireme-CSR](https://github.com/aporeto-inc/trireme-csr): an identity service (basically a CA) that is used in order to automatically generate certificates and asymmetric keypairs for each Trireme-Kubernetes instance
+* [Trireme-CSR](https://github.com/aporeto-inc/trireme-csr): an identity service (basically a CA) that is used to automatically sign certificates and generate asymmetric KeyPairs for each Trireme-Kubernetes instance.
 
-* [Trireme-Statistics](https://github.com/aporeto-inc/trireme-statistics) (optional): the monitoring and statistics bundle that relies on InfluxDB. Flows and Container events can be displayed in either Grafana, Chronograf or Trireme-Graph which shows a generated graph specifically for Kubernetes network flows between pods. Depending on your use-case, some or all of those frontend tools can be deployed.
+* [Trireme-Statistics](https://github.com/aporeto-inc/trireme-statistics) (optional): the monitoring and statistics bundle that currently implements the trireme-lib collector interface for InfluxDB. Flows and Container events can be displayed in either Grafana, Chronograf or Trireme-Graph - which shows a generated graph specifically for Kubernetes network flows between pods. Depending on your use-case, some or all of those frontend tools can be deployed.
 
 
 ## Prerequisites
 
 * Trireme requires Kubernetes 1.7.x for `ingress` _NetworkPolicy_ support
 * Trireme requires Kubernetes 1.8.x for `ingress` and `egress` policy support
-* Trireme requires IPTables with access to the `Mangle` module.
+* Trireme requires `IPTables` with access to the `Mangle` module.
+* Trireme requires the `ipset` utility to be installed
 * Trireme requires access to the Docker event API socket (`/var/run/docker.sock` by default)
 * Trireme requires privileged access.
 * When deploying with the `DaemonSet` model (default and recommended), Trireme requires access to the in-cluster service API Token. The Namespaces/Pods/NetworkPolicies must be available as read-only. Note that the default deployment takes care of this.
