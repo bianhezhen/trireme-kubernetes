@@ -7,41 +7,60 @@
 
 ----
 
-Trireme-Kubernetes is a simple, straightforward implementation of the _Kubernetes Network Policies_ specifications. Yet, it is independent from the used networking backend and works in any Kubernetes cluster.
+TL;DR? Jump to the **[Getting Started](#getting-started)** section.
+
+Trireme-Kubernetes is a simple, straightforward implementation of the _Kubernetes Network Policies_ specifications. It is independent from the used networking backend and works in _any_ Kubernetes cluster - even in managed Kubernetes clusters like [Google Kubernetes Engine (GKE)](https://cloud.google.com/kubernetes-engine/docs/) or [Azure Container Service (AKS)](https://docs.microsoft.com/en-us/azure/aks/).
+
+One of its powerful features is that you can deploy it to _multiple_ Kubernetes clusters and secure network traffic between specific pods of the different clusters (to secure e.g. MySQL replication or a MongoDB replicaset). You can furthermore integrate it with any other _non-containerized_ Linux service/process or any other docker container using [Trireme-Example](https://github.com/aporeto-inc/trireme-example).
 
 Trireme-Kubernetes builds upon a powerful concept of identity based on standard Kubernetes tags.
 
 It is based on the [Trireme Zero-Trust library](https://github.com/aporeto-inc/trireme-lib).
 
 ----
+**More on Kubernetes network policies:**
 
 * [Kubernetes NetworkPolicy definition](https://kubernetes.io/docs/concepts/services-networking/network-policies/)
 * [Declare NetworkPolicies](https://kubernetes.io/docs/tasks/administer-cluster/declare-network-policy/)
 
-## Trireme-Kubernetes ecosystem
 
-Trireme-Kubernetes is provided as a bundle with a set of optional addons:
+## Architecture and Components
 
-![Kubernetes-Trireme ecosystem](docs/architecture.png)
+The architecture of Trireme-Kubernetes is the following - not all components are required:
 
-* Trireme-Kubernetes: the enforcement service which polices flows based on standard NetworkPolicies defined on the Kubernetes API
+![Trireme-Kubernetes-Architecture](docs/trireme-kubernetes-architecture.png)
 
-* [Trireme-CSR](https://github.com/aporeto-inc/trireme-csr): an identity service that is used in order to automatically generate certificates and asymmetric keypairs for each Trireme-Kubernetes instance
+It consists of several components - not all of them are required:
 
-* [Trireme-Statistics](https://github.com/aporeto-inc/trireme-statistics) bundle: the monitoring and statistics bundle that relies on InfluxDB. Flows and Container events can be displayed in either Grafana, Chronograf or a generated graph specifically for Kubernetes flows. Depending on your use-case, some or all of those frontend tools can be deployed.
+* [Trireme-Kubernetes](https://github.com/aporeto-inc/trireme-kubernetes): the enforcement service which polices network connections (a.k.a "flows" in Trireme terminology) based on standard `NetworkPolicies` defined on the Kubernetes API
 
-## Getting started with Trireme-Kubernetes
+* [Trireme-CSR](https://github.com/aporeto-inc/trireme-csr): an identity service (basically a CA) that is used in order to automatically generate certificates and asymmetric keypairs for each Trireme-Kubernetes instance
+
+* [Trireme-Statistics](https://github.com/aporeto-inc/trireme-statistics) (optional): the monitoring and statistics bundle that relies on InfluxDB. Flows and Container events can be displayed in either Grafana, Chronograf or Trireme-Graph which shows a generated graph specifically for Kubernetes network flows between pods. Depending on your use-case, some or all of those frontend tools can be deployed.
+
+
+## Prerequisites
+
+* Trireme requires Kubernetes 1.7.x for `ingress` _NetworkPolicy_ support
+* Trireme requires Kubernetes 1.8.x for `ingress` and `egress` policy support
+* Trireme requires IPTables with access to the `Mangle` module.
+* Trireme requires access to the Docker event API socket (`/var/run/docker.sock` by default)
+* Trireme requires privileged access.
+* When deploying with the `DaemonSet` model (default and recommended), Trireme requires access to the in-cluster service API Token. The Namespaces/Pods/NetworkPolicies must be available as read-only. Note that the default deployment takes care of this.
+
+
+## Getting Started
 
 Trireme-Kubernetes is focused on being simple and Straightforward to deploy.
-For any serious deployment, the [extensive deployment guide](deployment/README.md) should be followed.
+**NOTE:** for any serious deployment, the [extensive deployment guide](deployment/README.md) should be followed.
 
-This section provides a quick and easy way to try Kubernetes.
+This section provides a quick and easy way to try Trireme-Kubernetes in your existing cluster.
 
-If you are using GKE or another system on which you don't have admin access (For RBAC//ABAC), make sure you can configure additional ABAC//RBAC rules.
-On GKE, specifically (replace with your account email address):
+If you are using GKE or another system on which you don't have admin access (for RBAC / ABAC), make sure you can configure additional ABAC / RBAC rules.
+Specifically on GKE you have to ensure that you have full cluster admin rights through RBAC. You can ensure that you do, by running the following command (replace with your account email address):
 
 ```
-kubectl create clusterrolebinding cluster-admin-binding --clusterrole=cluster-admin --user=your.google.cloud.email@example.org
+kubectl create clusterrolebinding cluster-admin-binding --clusterrole=cluster-admin --user=YOUR.GOOGLE.CLOUD.EMAIL@EXAMPLE.ORG
 ```
 
 1) Checkout the deployment files:
@@ -50,29 +69,33 @@ git clone https://github.com/aporeto-inc/trireme-kubernetes.git
 cd trireme-kubernetes/deployment
 ```
 
-2) create the configuration file: (keeping everything by default should be fine)
+2) Create the `ConfigMap` from this configuration file: (keeping everything by default should be fine)
 ```
-kubectl create -f config.yaml
-```
-
-3) Create the Statistic bundle (This will deploy all the possible options):
-```
-kubectl create -f statistics
+kubectl create -f trireme-config-cm.yaml
 ```
 
-4) Create a dummy Self-signed `Certificate Authority` for the identity service and add it as a Kubernetes secret (requires the [tg](https://github.com/aporeto-inc/tg) utility - quick install: `go get -u github.com/aporeto-inc/tg`):
+3) Optionally, deploy the Trireme-Statistics bundle now (this will deploy all possible frontend options):
+```
+kubectl create -f statistics/
+```
+
+4) Create a dummy self-signed _Certificate Authority_ (CA) for Trireme-CSR (the identity service) and add it as a Kubernetes secret (requires the [tg](https://github.com/aporeto-inc/tg) utility - quick install: `go get -u github.com/aporeto-inc/tg`):
 ```
 ./gen_pki_ca.sh
 ```
 
-5) Create the Identity service and finally Trireme-Kubernetes:
+5) Finally, deploy Trireme-CSR and Trireme-Kubernetes:
 ```
-kubectl create -f trireme
+kubectl create -f trireme/
 ```
 
 At this point, the whole framework is up and running and you can access the Services in order to display your NetworkPolicy metrics:
 
 ```
+$ kubectl --namespace=kube-system get services
+
+
+NAME                   TYPE           CLUSTER-IP      EXTERNAL-IP     PORT(S)         AGE
 chronograf             ClusterIP      10.43.241.132   <none>          8888/TCP        20h
 chronograf-public      LoadBalancer   10.43.254.222   35.194.27.144   80:32153/TCP    20h
 grafana                ClusterIP      10.43.241.104   <none>          3000/TCP        20h
@@ -128,13 +151,6 @@ Trireme-Kubernetes [can be deployed](https://github.com/aporeto-inc/trireme-kube
 * A standalone daemon process on each node.
 * A docker container managed outside Kubernetes on each node.
 
-## Prerequisites
-
-* Trireme requires Kubernetes 1.7 for `ingress` policy only use as well as Kubernetes 1.8 for `egress` policy use.
-* Trireme requires IPTables with access to the `Mangle` module.
-* Trireme requires access to the Docker event API socket (`/var/run/docker.sock` by default)
-* Trireme requires privileged access.
-* When deploying with the DaemonSet model, Trireme requires access to the in-cluster service API/Token. The Namespaces/Pods/NetworkPolicies must be available as read-only
 
 ## External materials
 
