@@ -11,7 +11,7 @@ TL;DR? Jump to the **[Getting Started](#getting-started)** section.
 
 Trireme-Kubernetes is a simple, straightforward implementation of the _Kubernetes Network Policies_ specifications. It is independent from the used networking backend and works in _any_ Kubernetes cluster - even in managed Kubernetes clusters like [Google Kubernetes Engine (GKE)](https://cloud.google.com/kubernetes-engine/docs/) or [Azure Container Service (AKS)](https://docs.microsoft.com/en-us/azure/aks/).
 
-One of its powerful features is that you can deploy it to _multiple_ Kubernetes clusters and secure network traffic between specific pods of the different clusters (to secure e.g. MySQL replication or a MongoDB replicaset). You can furthermore integrate it with any other _non-containerized_ Linux service/process or any other docker container using [Trireme-Example](https://github.com/aporeto-inc/trireme-example).
+One of its powerful features is that you can deploy it to _multiple_ Kubernetes clusters and secure network traffic between specific pods of the different clusters (to secure e.g. MySQL replication or a MongoDB replicaset).
 
 Trireme-Kubernetes builds upon a powerful concept of identity based on standard Kubernetes tags.
 
@@ -34,7 +34,7 @@ Trireme-Kubernetes consists of several components - not all of them are required
 
 * [Trireme-Kubernetes](https://github.com/aporeto-inc/trireme-kubernetes): the enforcement service which polices network connections (a.k.a "flows" in Trireme terminology) based on standard `NetworkPolicies` defined on the Kubernetes API
 
-* [Trireme-CSR](https://github.com/aporeto-inc/trireme-csr): an identity service (basically a CA) that is used to automatically sign certificates and generate asymmetric KeyPairs for each Trireme-Kubernetes instance.
+* [Trireme-CSR](https://github.com/aporeto-inc/trireme-csr) (optional): an identity service (basically a CA) that is used to automatically sign certificates and generate asymmetric KeyPairs for each Trireme-Kubernetes instance. Note that this is deployed by default. However, you can exchange it to a simple pre-shared key deployment (PSK) if you really wish to do so.
 
 * [Trireme-Statistics](https://github.com/aporeto-inc/trireme-statistics) (optional): the monitoring and statistics bundle that currently implements the trireme-lib collector interface for InfluxDB. Flows and Container events can be displayed in either Grafana, Chronograf or Trireme-Graph - which shows a generated graph specifically for Kubernetes network flows between pods. Depending on your use-case, some or all of those frontend tools can be deployed.
 
