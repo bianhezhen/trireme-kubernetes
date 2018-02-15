@@ -1,8 +1,8 @@
 .DS_Store
 version/version.go
-docker/app
+docker/trireme-kubernetes
 trireme-kubernetes
 testresults.xml
-glide.lock
+Gopkg.lock
 vendor/
 run.sh

@@ -6,7 +6,7 @@ services:
   - docker
 
 go:
- - 1.8.1
+ - 1.9.x
 
 addons:
    apt:
@@ -24,14 +24,13 @@ env:
 
 before_install:
   - go get -u gopkg.in/alecthomas/gometalinter.v1
-  - go get -v github.com/Masterminds/glide
+  - go get -u github.com/golang/dep/cmd/dep
   - gometalinter.v1 --install
   - make codegen
 
 install:
   - mkdir -p $GOPATH/src/github.com/docker && cd $GOPATH/src/github.com/docker && git clone https://github.com/docker/docker -b 1.13.x docker && cd -
-  - glide cc
-  - glide up
+  - dep ensure -v
 
 
 script:
