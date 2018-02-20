@@ -3,7 +3,7 @@
 ##
 [[constraint]]
   name = "github.com/aporeto-inc/trireme-csr"
-  branch = "master"
+  branch = "code-generator"
 
 [[constraint]]
   name = "github.com/aporeto-inc/trireme-statistics"
