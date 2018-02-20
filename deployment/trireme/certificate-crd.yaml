@@ -4,8 +4,8 @@ metadata:
   name: certificates.certmanager.k8s.io
 spec:
   group: certmanager.k8s.io
-  version: v1alpha1
+  version: v1alpha2
   names:
     kind: Certificate
     plural: certificates
-  scope: Namespaced
+  scope: Cluster
