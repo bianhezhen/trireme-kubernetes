@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/aporeto-inc/trireme-csr/certificates"
-	certificateclient "github.com/aporeto-inc/trireme-csr/client"
+	certificateclient "github.com/aporeto-inc/trireme-csr/pkg/client/clientset/versioned"
 
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
@@ -28,12 +28,10 @@ func LoadPKI(nodeName string, kubeconfigPath string) (*TriremePKI, error) {
 		panic("Error generating Kubeconfig " + err.Error())
 	}
 
-	certClient, _, err := certificateclient.NewClient(kubeconfig)
+	certManager, err := certificates.NewCertManager(nodeName, certificateclient.NewForConfigOrDie(kubeconfig))
 	if err != nil {
-		panic("Error creating REST Kube Client for certificates: " + err.Error())
+		panic("Failed to create CertManager " + err.Error())
 	}
-
-	certManager, err := certificates.NewCertManager(nodeName, certClient)
 
 	err = certManager.GeneratePrivateKey()
 	if err != nil {
