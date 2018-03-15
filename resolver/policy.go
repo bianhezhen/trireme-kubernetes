@@ -4,7 +4,6 @@ package resolver
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 
 	"github.com/aporeto-inc/trireme-kubernetes/kubernetes"
@@ -28,14 +27,12 @@ type KubernetesPolicy struct {
 	controller       controller.TriremeController
 	triremeNetworks  []string
 	KubernetesClient *kubernetes.Client
-	betaPolicies     bool
-	egressPolicies   bool
 	cache            *cache
 	stopAll          chan struct{}
 }
 
 // NewKubernetesPolicy creates a new policy engine for the Trireme package
-func NewKubernetesPolicy(ctx context.Context, controller controller.TriremeController, kubeconfig string, nodename string, triremeNetworks []string, betaPolicies bool, egressPolicies bool) (*KubernetesPolicy, error) {
+func NewKubernetesPolicy(ctx context.Context, controller controller.TriremeController, kubeconfig string, nodename string, triremeNetworks []string) (*KubernetesPolicy, error) {
 	client, err := kubernetes.NewClient(kubeconfig, nodename)
 	if err != nil {
 		return nil, fmt.Errorf("Couldn't create KubernetesClient: %v ", err)
@@ -45,40 +42,8 @@ func NewKubernetesPolicy(ctx context.Context, controller controller.TriremeContr
 		controller:       controller,
 		triremeNetworks:  triremeNetworks,
 		KubernetesClient: client,
-		betaPolicies:     betaPolicies,
-		egressPolicies:   egressPolicies,
 		cache:            newCache(),
 	}, nil
-}
-
-// isNamespaceNetworkPolicyActive returns true if the namespace has NetworkPolicies
-// activated on the annotation
-func isNamespaceNetworkPolicyActive(namespace *api.Namespace) bool {
-	// Statically never actvating anything into Kube-System namespace.
-	// TODO: Allow KubeSystem to have networking policies enabled ?
-	if namespace.GetName() == "kube-system" {
-		return false
-	}
-
-	// Check if annotation is present. As NetworkPolicies in K8s are still beta
-	// The format needs to be manually parsed out of JSON.
-	value, ok := namespace.GetAnnotations()[KubernetesNetworkPolicyAnnotationID]
-
-	if !ok {
-		return false
-	}
-	networkPolicyAnnotation := &NamespaceNetworkPolicy{}
-	if err := json.Unmarshal([]byte(value), networkPolicyAnnotation); err != nil {
-		return false
-	}
-
-	if networkPolicyAnnotation != nil &&
-		networkPolicyAnnotation.Ingress != nil &&
-		networkPolicyAnnotation.Ingress.Isolation != nil &&
-		*networkPolicyAnnotation.Ingress.Isolation == DefaultDeny {
-		return true
-	}
-	return false
 }
 
 // isNamespaceKubeSystem returns true if the namespace is kube-system
@@ -209,7 +174,7 @@ func (k *KubernetesPolicy) resolvePodPolicy(kubernetesPod string, kubernetesName
 
 	ips := policy.ExtendedMap{policy.DefaultNamespace: pod.Status.PodIP}
 
-	puPolicy, err := generatePUPolicy(ingressPodRules, egressPodRules, kubernetesNamespace, allNamespaces, policy.NewTagStoreFromMap(podLabels), ips, k.triremeNetworks, k.betaPolicies, k.egressPolicies)
+	puPolicy, err := generatePUPolicy(ingressPodRules, egressPodRules, kubernetesNamespace, allNamespaces, policy.NewTagStoreFromMap(podLabels), ips, k.triremeNetworks)
 	if err != nil {
 		return nil, err
 	}
@@ -313,20 +278,8 @@ func (k *KubernetesPolicy) addNamespace(addedNS *api.Namespace) error {
 		return nil
 	}
 
-	if !k.betaPolicies {
-		// Every namespace is activated under GA networkpolicies
-		zap.L().Info("Namespace Added. Activating GA NetworkPolicies", zap.String("namespace", addedNS.GetName()))
-		return k.activateNamespace(addedNS)
-	}
-
-	if !isNamespaceNetworkPolicyActive(addedNS) {
-		// Beta Policies: Namespace doesn't have Beta NetworkPolicies annotations
-		zap.L().Info("Namespace Added. Doesn't have Beta NetworkPolicies annotations. Not activating", zap.String("namespace", addedNS.GetName()))
-		return nil
-	}
-
-	// Beta Policies: Namespace has the annotations
-	zap.L().Info("Namespace Added. Has Beta NetworkPolicies. Activating", zap.String("namespace", addedNS.GetName()))
+	// Every namespace is activated under GA networkpolicies
+	zap.L().Info("Namespace Added. Activating GA NetworkPolicies", zap.String("namespace", addedNS.GetName()))
 	return k.activateNamespace(addedNS)
 }
 
@@ -339,27 +292,9 @@ func (k *KubernetesPolicy) deleteNamespace(deletedNS *api.Namespace) error {
 }
 
 func (k *KubernetesPolicy) updateNamespace(oldNS, updatedNS *api.Namespace) error {
-	if !k.betaPolicies {
-		// GA Policies. No changes.
-		return nil
-	}
-
-	// Beta NetworkPolicies: Checking if Namespace needs to be activated//deactivated.
-	if isNamespaceNetworkPolicyActive(updatedNS) {
-		if k.cache.isNamespaceActive(updatedNS.GetName()) {
-			zap.L().Info("Namespace Modified. Already active for beta NetPolicies", zap.String("namespace", updatedNS.GetName()))
-			return nil
-		}
-		zap.L().Info("Namespace Modified. Activating for beta NetPolicies", zap.String("namespace", updatedNS.GetName()))
-		return k.activateNamespace(updatedNS)
-	}
-
-	if k.cache.isNamespaceActive(updatedNS.GetName()) {
-		zap.L().Info("Namespace Modified. Deactivating for beta NetPolicies", zap.String("namespace", updatedNS.GetName()))
-		return k.deactivateNamespace(updatedNS)
-	}
-	zap.L().Info("Namespace Modified. Doesn't have Beta NetworkPolicies annotations. Not activating", zap.String("namespace", updatedNS.GetName()))
+	// GA Policies. No changes.
 	return nil
+
 }
 
 func (k *KubernetesPolicy) addPod(addedPod *api.Pod) error {

@@ -109,7 +109,7 @@ func launch(config *config.Configuration) {
 	}
 
 	// Create New PolicyEngine based on Kubernetes rules.
-	kubernetesPolicyResolver, err := resolver.NewKubernetesPolicy(ctx, ctrl, config.KubeconfigPath, config.KubeNodeName, config.ParsedTriremeNetworks, config.BetaNetPolicies, config.EgressNetPolicies)
+	kubernetesPolicyResolver, err := resolver.NewKubernetesPolicy(ctx, ctrl, config.KubeconfigPath, config.KubeNodeName, config.ParsedTriremeNetworks)
 	if err != nil {
 		zap.L().Fatal("Error initializing KubernetesPolicy: ", zap.Error(err))
 	}

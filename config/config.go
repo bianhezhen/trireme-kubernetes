@@ -29,12 +29,6 @@ type Configuration struct {
 	// RemoteEnforcer defines if the enforcer is spawned into each POD namespace
 	// or into the host default namespace.
 	RemoteEnforcer bool
-	// BetaNetPolicies defines if Trireme Kubernetes should follow the beta model
-	// or the GA model for Network Policies. Default is GA
-	BetaNetPolicies bool
-	// EgressNetPolicies defines if Trireme Kubernetes should follow the 1.8 model for
-	// NetworkPolicies.
-	EgressNetPolicies bool
 
 	TriremeNetworks       string
 	ParsedTriremeNetworks []string
@@ -71,8 +65,6 @@ func LoadConfig() (*Configuration, error) {
 	flag.String("Cacert", "", "Path to the CACert root of trust.")
 	flag.String("PSK", "", "PSK to use")
 	flag.Bool("RemoteEnforcer", true, "Use the Trireme Remote Enforcer.")
-	flag.Bool("BetaNetPolicies", false, "Use old deprecated Beta Network policy model (default: use GA).")
-	flag.Bool("EgressNetPolicies", true, "Use new Egress Network policy model (default: use Egress).")
 	flag.String("TriremeNetworks", "", "TriremeNetworks")
 	flag.String("KubeconfigPath", "", "KubeConfig used to connect to Kubernetes")
 	flag.String("LogLevel", "", "Log level. Default to info (trace//debug//info//warn//error//fatal)")
@@ -90,8 +82,6 @@ func LoadConfig() (*Configuration, error) {
 	viper.SetDefault("PKIDirectory", "")
 	viper.SetDefault("PSK", "PSK")
 	viper.SetDefault("RemoteEnforcer", true)
-	viper.SetDefault("BetaNetPolicies", false)
-	viper.SetDefault("EgressNetPolicies", true)
 	viper.SetDefault("TriremeNetworks", "")
 	viper.SetDefault("KubeconfigPath", "")
 	viper.SetDefault("LogLevel", "info")
