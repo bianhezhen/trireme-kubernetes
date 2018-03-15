@@ -41,8 +41,7 @@ Trireme-Kubernetes consists of several components - not all of them are required
 
 ## Prerequisites
 
-* Trireme requires Kubernetes 1.7.x for `ingress` _NetworkPolicy_ support
-* Trireme requires Kubernetes 1.8.x for `ingress` and `egress` policy support
+* Trireme requires Kubernetes 1.8.x or later with GA NetworkPolicy support
 * Trireme requires `IPTables` with access to the `Mangle` module.
 * Trireme requires the `ipset` utility to be installed
 * Trireme requires access to the Docker event API socket (`/var/run/docker.sock` by default)
