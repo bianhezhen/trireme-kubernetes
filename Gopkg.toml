@@ -3,11 +3,11 @@
 ##
 [[constraint]]
   name = "github.com/aporeto-inc/trireme-csr"
-  branch = "trireme8.0"
+  branch = "master"
 
 [[constraint]]
   name = "github.com/aporeto-inc/trireme-statistics"
-  branch = "add_collect_user_event"
+  branch = "master"
 
 [[constraint]]
   name = "github.com/aporeto-inc/trireme-lib"
