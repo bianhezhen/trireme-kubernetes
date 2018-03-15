@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"os"
@@ -15,10 +16,11 @@ import (
 	"github.com/aporeto-inc/trireme-kubernetes/utils"
 	"github.com/aporeto-inc/trireme-kubernetes/version"
 
-	trireme "github.com/aporeto-inc/trireme-lib"
 	"github.com/aporeto-inc/trireme-lib/collector"
-	"github.com/aporeto-inc/trireme-lib/enforcer/utils/fqconfig"
-	"github.com/aporeto-inc/trireme-lib/enforcer/utils/secrets"
+	"github.com/aporeto-inc/trireme-lib/controller"
+	"github.com/aporeto-inc/trireme-lib/controller/pkg/fqconfig"
+	"github.com/aporeto-inc/trireme-lib/controller/pkg/secrets"
+	"github.com/aporeto-inc/trireme-lib/monitor"
 
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
@@ -50,14 +52,11 @@ func launch(config *config.Configuration) {
 
 	zap.L().Debug("Config used", zap.Any("Config", config))
 
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	// Generate a unique NodeName used internally to Trireme.
 	triremeNodeName := utils.GenerateNodeName(config.KubeNodeName)
-
-	// Create New PolicyEngine based on Kubernetes rules.
-	kubernetesPolicyResolver, err := resolver.NewKubernetesPolicy(config.KubeconfigPath, config.KubeNodeName, config.ParsedTriremeNetworks, config.BetaNetPolicies, config.EgressNetPolicies)
-	if err != nil {
-		zap.L().Fatal("Error initializing KubernetesPolicy: ", zap.Error(err))
-	}
 
 	// Setting up the EventCollector based on the user Config
 	var collectorInstance collector.EventCollector
@@ -92,42 +91,52 @@ func launch(config *config.Configuration) {
 		}
 	}
 
-	// FilterQueue configuration
-	fqConfig := fqconfig.NewFilterQueueWithDefaults()
-
-	// Monitor configuration
-	monitorOptions := []trireme.MonitorOption{
-		trireme.OptionMonitorDocker(
-			trireme.SubOptionMonitorDockerFlags(true, false),
-		),
+	// Creating the controller
+	controllerOptions := []controller.Option{
+		controller.OptionSecret(triremesecret),
+		controller.OptionCollector(collectorInstance),
+		controller.OptionEnforceFqConfig(fqconfig.NewFilterQueueWithDefaults()),
+		//controller.OptionTargetNetworks(config.ParsedTriremeNetworks),
 	}
-
-	// Trireme configuration
-	triremeOptions := []trireme.Option{
-		trireme.OptionSecret(triremesecret),
-		trireme.OptionPolicyResolver(kubernetesPolicyResolver),
-		trireme.OptionEnforceFqConfig(fqConfig),
-		trireme.OptionCollector(collectorInstance),
-		trireme.OptionMonitors(
-			trireme.NewMonitor(monitorOptions...),
-		),
-	}
-
-	// Trace loglevel means we want to see the details of every packet.
 	if config.LogLevel == "trace" {
-		triremeOptions = append(triremeOptions, trireme.OptionPacketLogs())
+		controllerOptions = append(controllerOptions, controller.OptionPacketLogs())
 	}
 
-	t := trireme.New(triremeNodeName, triremeOptions...)
-	if t == nil {
+	// Initialize the controllers
+	ctrl := controller.New(triremeNodeName, controllerOptions...)
+	if ctrl == nil {
 		zap.L().Fatal("Unable to initialize trireme")
 	}
 
-	// Register Trireme to the Kubernetes policy resolver
-	kubernetesPolicyResolver.SetPolicyUpdater(t)
+	// Create New PolicyEngine based on Kubernetes rules.
+	kubernetesPolicyResolver, err := resolver.NewKubernetesPolicy(ctx, ctrl, config.KubeconfigPath, config.KubeNodeName, config.ParsedTriremeNetworks, config.BetaNetPolicies, config.EgressNetPolicies)
+	if err != nil {
+		zap.L().Fatal("Error initializing KubernetesPolicy: ", zap.Error(err))
+	}
+
+	// Monitor configuration
+	monitorOptions := []monitor.Options{
+		monitor.OptionMonitorDocker(
+			monitor.SubOptionMonitorDockerFlags(true, false),
+		),
+		monitor.OptionPolicyResolver(kubernetesPolicyResolver),
+		monitor.OptionCollector(collectorInstance),
+	}
+
+	m, err := monitor.NewMonitors(monitorOptions...)
+	if err != nil {
+		zap.L().Fatal("Unable to initialize monitor: ", zap.Error(err))
+	}
+
+	if err := ctrl.Run(ctx); err != nil {
+		zap.L().Fatal("Failed to start controller")
+	}
 
 	// Start all the go routines.
-	t.Start()
+	if err := m.Run(ctx); err != nil {
+		zap.L().Fatal("Failed to start monitor")
+	}
+
 	zap.L().Debug("Trireme started")
 	kubernetesPolicyResolver.Run()
 	zap.L().Debug("PolicyResolver started")
@@ -138,11 +147,12 @@ func launch(config *config.Configuration) {
 	// Waiting for a Sig
 	<-c
 
+	// Cancel al routines that support ctx
+	cancel()
+
 	zap.L().Debug("Stop signal received")
 	kubernetesPolicyResolver.Stop()
 	zap.L().Debug("KubernetesPolicy stopped")
-	t.Stop()
-	zap.L().Debug("Trireme stopped")
 
 	zap.L().Info("Everything stopped. Bye Kubernetes!")
 }
@@ -153,7 +163,7 @@ func launch(config *config.Configuration) {
 func enforce() {
 	zap.L().Info("Launching in enforcer mode")
 
-	if err := trireme.LaunchRemoteEnforcer(nil); err != nil {
+	if err := controller.LaunchRemoteEnforcer(nil); err != nil {
 		zap.L().Fatal("Unable to start enforcer", zap.Error(err))
 	}
 
@@ -212,7 +222,7 @@ func main() {
 	}
 
 	if config.Enforce {
-		_, _, config.LogLevel, config.LogFormat = trireme.GetLogParameters()
+		_, _, config.LogLevel, config.LogFormat = controller.GetLogParameters()
 	}
 
 	err = setLogs(config.LogFormat, config.LogLevel)

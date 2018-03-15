@@ -6,7 +6,7 @@ import (
 	"os"
 	"strings"
 
-	trireme "github.com/aporeto-inc/trireme-lib"
+	"github.com/aporeto-inc/trireme-lib/controller"
 	"github.com/spf13/viper"
 
 	flag "github.com/spf13/pflag"
@@ -147,7 +147,7 @@ func setupTriremeSubProcessArgs(config *Configuration) {
 	logToConsole := true
 	logWithID := false
 
-	trireme.SetLogParameters(logToConsole, logWithID, config.LogLevel, config.LogFormat)
+	controller.SetLogParameters(logToConsole, logWithID, config.LogLevel, config.LogFormat)
 }
 
 // validateConfig is validating the Configuration struct.

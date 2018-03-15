@@ -188,6 +188,15 @@ func (c *Client) AllNodes() (*api.NodeList, error) {
 	return nodes, nil
 }
 
+// NetworkPolicies return a list of all the networkpolicies in a specific namespace
+func (c *Client) NetworkPolicies(namespace string) (*networking.NetworkPolicyList, error) {
+	nps, err := c.kubeClient.Networking().NetworkPolicies(namespace).List(metav1.ListOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("Couldn't get nertworkpolicies list : %s", err)
+	}
+	return nps, nil
+}
+
 // KubeClient returns the Kubernetes ClientSet
 func (c *Client) KubeClient() kubernetes.Interface {
 	return c.kubeClient

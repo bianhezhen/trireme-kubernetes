@@ -3,15 +3,16 @@
 package resolver
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 
 	"github.com/aporeto-inc/trireme-kubernetes/kubernetes"
 
 	"github.com/aporeto-inc/kubepox"
-	trireme "github.com/aporeto-inc/trireme-lib"
+	"github.com/aporeto-inc/trireme-lib/common"
+	"github.com/aporeto-inc/trireme-lib/controller"
 	"github.com/aporeto-inc/trireme-lib/policy"
-	"github.com/aporeto-inc/trireme-lib/rpc/events"
 
 	api "k8s.io/api/core/v1"
 	networking "k8s.io/api/networking/v1"
@@ -24,8 +25,8 @@ import (
 // It implements the Trireme Resolver interface and implements the policies defined
 // by Kubernetes NetworkPolicy API.
 type KubernetesPolicy struct {
+	controller       controller.TriremeController
 	triremeNetworks  []string
-	policyUpdater    trireme.PolicyUpdater
 	KubernetesClient *kubernetes.Client
 	betaPolicies     bool
 	egressPolicies   bool
@@ -34,13 +35,14 @@ type KubernetesPolicy struct {
 }
 
 // NewKubernetesPolicy creates a new policy engine for the Trireme package
-func NewKubernetesPolicy(kubeconfig string, nodename string, triremeNetworks []string, betaPolicies bool, egressPolicies bool) (*KubernetesPolicy, error) {
+func NewKubernetesPolicy(ctx context.Context, controller controller.TriremeController, kubeconfig string, nodename string, triremeNetworks []string, betaPolicies bool, egressPolicies bool) (*KubernetesPolicy, error) {
 	client, err := kubernetes.NewClient(kubeconfig, nodename)
 	if err != nil {
 		return nil, fmt.Errorf("Couldn't create KubernetesClient: %v ", err)
 	}
 
 	return &KubernetesPolicy{
+		controller:       controller,
 		triremeNetworks:  triremeNetworks,
 		KubernetesClient: client,
 		betaPolicies:     betaPolicies,
@@ -94,43 +96,60 @@ func isPolicyUpdateNeeded(oldPod, newPod *api.Pod) bool {
 	return false
 }
 
-// SetPolicyUpdater registers the interface used for updating Policies explicitely.
-func (k *KubernetesPolicy) SetPolicyUpdater(policyUpdater trireme.PolicyUpdater) error {
-	k.policyUpdater = policyUpdater
-	return nil
-}
-
 // ResolvePolicy generates the Policy for the target PU.
 // The policy for the PU will be based on the defined
 // Kubernetes NetworkPolicies on the Pod to which the PU belongs.
-func (k *KubernetesPolicy) ResolvePolicy(contextID string, runtimeGetter policy.RuntimeReader) (*policy.PUPolicy, error) {
+func (k *KubernetesPolicy) ResolvePolicy(contextID string, runtime policy.RuntimeReader) (*policy.PUPolicy, error) {
 
 	// Only the Infra Container should be policed. All the others should be AllowAll.
 	// The Infra container can be found by checking env. variable.
-	tagContent, ok := runtimeGetter.Tag(KubernetesContainerName)
+	tagContent, ok := runtime.Tag(KubernetesContainerName)
 	if !ok || tagContent != KubernetesInfraContainerName {
 		// return AllowAll
 		zap.L().Info("Container is not Infra Container. AllowingAll", zap.String("contextID", contextID))
 		return notInfraContainerPolicy(), nil
 	}
 
-	podName, ok := runtimeGetter.Tag(KubernetesPodName)
+	podName, ok := runtime.Tag(KubernetesPodName)
 	if !ok {
 		return nil, fmt.Errorf("Error getting Kubernetes Pod name")
 	}
-	podNamespace, ok := runtimeGetter.Tag(KubernetesPodNamespace)
+	podNamespace, ok := runtime.Tag(KubernetesPodNamespace)
 	if !ok {
 		return nil, fmt.Errorf("Error getting Kubernetes Pod namespace")
 	}
 
 	// Keep the mapping in cache: ContextID <--> PodNamespace/PodName
-	k.cache.addPodToCache(contextID, podName, podNamespace)
+	k.cache.addPodToCache(contextID, runtime, podName, podNamespace)
 	return k.resolvePodPolicy(podName, podNamespace)
 }
 
 // HandlePUEvent  is called by Trireme for notification that a specific PU got an event.
-func (k *KubernetesPolicy) HandlePUEvent(contextID string, eventType events.Event) {
-	zap.L().Debug("Trireme Container Event", zap.String("contextID", contextID), zap.Any("eventType", eventType))
+func (k *KubernetesPolicy) HandlePUEvent(ctx context.Context, puID string, event common.Event, runtime policy.RuntimeReader) error {
+	zap.L().Debug("Trireme Container Event", zap.String("contextID", puID), zap.Any("eventType", event))
+
+	// We only add on the start of a DockeeContainer. All the other events are directly comming from Kubernetes API.
+
+	switch event {
+	case common.EventStart:
+		resolvedPolicy, err := k.ResolvePolicy(puID, runtime)
+		if err != nil {
+			return err
+		}
+
+		// TODO: Better management of PURuntime (no casting)
+		err = k.controller.Enforce(ctx, puID, resolvedPolicy, runtime.(*policy.PURuntime))
+		if err != nil {
+			return fmt.Errorf("Error while creating the policy: %s", err)
+		}
+
+	case common.EventCreate:
+	case common.EventDestroy:
+	case common.EventPause:
+	case common.EventUnpause:
+	}
+
+	return nil
 }
 
 // resolvePodPolicy generates the Trireme Policy for a specific Kube Pod and Namespace.
@@ -171,26 +190,17 @@ func (k *KubernetesPolicy) resolvePodPolicy(kubernetesPod string, kubernetesName
 	// adding the namespace as an extra label.
 	podLabels["@namespace"] = kubernetesNamespace
 
-	// Generating all the rules and generate policy.
-
-	// TODO: Quick hack to generate NetworkPolicy from the store instead than from the API.
-	// Replace this with correct API Calls whenever client-go will support it.
-	nsWatcher, exist := k.cache.getNamespaceWatcher(kubernetesNamespace)
-	if !exist {
-		return nil, fmt.Errorf("Couldn't find active Namespace %s ", kubernetesNamespace)
-	}
-
-	namespaceRules, err := nsWatcher.getPolicyList()
+	nsNetworkPolicies, err := k.KubernetesClient.NetworkPolicies(kubernetesNamespace)
 	if err != nil {
 		return nil, fmt.Errorf("Couldn't generate current NetPolicies for the namespace %s ", kubernetesNamespace)
 	}
 
-	ingressPodRules, err := k.KubernetesClient.IngressPodRules(kubernetesPod, kubernetesNamespace, namespaceRules)
+	ingressPodRules, err := k.KubernetesClient.IngressPodRules(kubernetesPod, kubernetesNamespace, nsNetworkPolicies)
 	if err != nil {
 		return nil, fmt.Errorf("Couldn't get the NetworkPolicies for Pod %s : %s", kubernetesPod, err)
 	}
 
-	egressPodRules, err := k.KubernetesClient.EgressPodRules(kubernetesPod, kubernetesNamespace, namespaceRules)
+	egressPodRules, err := k.KubernetesClient.EgressPodRules(kubernetesPod, kubernetesNamespace, nsNetworkPolicies)
 	if err != nil {
 		return nil, fmt.Errorf("Couldn't get the NetworkPolicies for Pod %s : %s", kubernetesPod, err)
 	}
@@ -213,7 +223,7 @@ func (k *KubernetesPolicy) updatePodPolicy(pod *api.Pod) error {
 	podNamespace := pod.GetNamespace()
 	zap.L().Info("Update pod Policy", zap.String("podNamespace", podNamespace), zap.String("podName", podName))
 
-	if k.policyUpdater == nil {
+	if k.controller == nil {
 		return fmt.Errorf("PolicyUpdate failed: No PolicyUpdater registered")
 	}
 
@@ -223,15 +233,23 @@ func (k *KubernetesPolicy) updatePodPolicy(pod *api.Pod) error {
 		return fmt.Errorf("Error finding pod in cache for update: %s", err)
 	}
 
+	runtime, err := k.cache.runtimeByPodName(podName, podNamespace)
+	if err != nil {
+		return fmt.Errorf("Error finding pod in cache for update: %s", err)
+	}
+
 	// Regenerating a Full Policy and Tags.
 	containerPolicy, err := k.resolvePodPolicy(podName, podNamespace)
 	if err != nil {
 		return fmt.Errorf("Couldn't generate a Pod Policy for pod update %s", err)
 	}
-	err = k.policyUpdater.UpdatePolicy(contextID, containerPolicy)
+
+	// TODO: Eventually find a way to not cast explicitely.
+	err = k.controller.UpdatePolicy(context.TODO(), contextID, containerPolicy, runtime.(*policy.PURuntime))
 	if err != nil {
 		return fmt.Errorf("Error while updating the policy: %s", err)
 	}
+
 	return nil
 }
 
@@ -347,9 +365,17 @@ func (k *KubernetesPolicy) updateNamespace(oldNS, updatedNS *api.Namespace) erro
 func (k *KubernetesPolicy) addPod(addedPod *api.Pod) error {
 	zap.L().Debug("Pod Added", zap.String("name", addedPod.GetName()), zap.String("namespace", addedPod.GetNamespace()))
 
-	err := k.updatePodPolicy(addedPod)
+	// Checking to see if the pod already appeared in Trireme. Returning directly if it didn't appear yet.
+	// TODO: Find a way to do a single lookup
+	_, err := k.cache.contextIDByPodName(addedPod.GetName(), addedPod.GetNamespace())
 	if err != nil {
-		return fmt.Errorf("Failed UpdatePolicy on NewPodEvent: %s", err)
+		zap.L().Debug("Pod not found in cache yet. Probably the corresponding container didn't appear yet in Trireme-lib", zap.String("name", addedPod.GetName()), zap.String("namespace", addedPod.GetNamespace()))
+		return nil
+	}
+
+	err = k.updatePodPolicy(addedPod)
+	if err != nil {
+		return fmt.Errorf("Failed UpdatePolicy on NewPodEvent. %s", err)
 	}
 	return nil
 }

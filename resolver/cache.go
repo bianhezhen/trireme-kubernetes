@@ -3,10 +3,13 @@ package resolver
 import (
 	"fmt"
 	"sync"
+
+	"github.com/aporeto-inc/trireme-lib/policy"
 )
 
 type podCacheEntry struct {
 	contextID string
+	runtime   policy.RuntimeReader
 }
 
 // Cache keeps all the state needed for the integration.
@@ -29,11 +32,14 @@ func kubePodIdentifier(podName string, podNamespace string) string {
 	return podNamespace + "/" + podName
 }
 
-func (c *cache) addPodToCache(contextID string, podName string, podNamespace string) {
+func (c *cache) addPodToCache(contextID string, runtime policy.RuntimeReader, podName string, podNamespace string) {
 	c.Lock()
 	defer c.Unlock()
 	kubeIdentifier := kubePodIdentifier(podName, podNamespace)
-	c.podCache[kubeIdentifier] = podCacheEntry{contextID: contextID}
+	c.podCache[kubeIdentifier] = podCacheEntry{
+		contextID: contextID,
+		runtime:   runtime,
+	}
 }
 
 func (c *cache) contextIDByPodName(podName string, podNamespace string) (string, error) {
@@ -45,6 +51,17 @@ func (c *cache) contextIDByPodName(podName string, podNamespace string) (string,
 		return "", fmt.Errorf("Pod %v not found in Cache", kubeIdentifier)
 	}
 	return cacheEntry.contextID, nil
+}
+
+func (c *cache) runtimeByPodName(podName string, podNamespace string) (policy.RuntimeReader, error) {
+	c.Lock()
+	defer c.Unlock()
+	kubeIdentifier := kubePodIdentifier(podName, podNamespace)
+	cacheEntry, ok := c.podCache[kubeIdentifier]
+	if !ok {
+		return nil, fmt.Errorf("Pod %v not found in Cache", kubeIdentifier)
+	}
+	return cacheEntry.runtime, nil
 }
 
 func (c *cache) deleteFromCacheByPodName(podName string, podNamespace string) error {
