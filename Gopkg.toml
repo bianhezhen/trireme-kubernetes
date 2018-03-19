@@ -3,11 +3,11 @@
 ##
 [[constraint]]
   name = "github.com/aporeto-inc/trireme-csr"
-  branch = "master"
+  branch = "trireme_kubernetes"
 
 [[constraint]]
   name = "github.com/aporeto-inc/trireme-statistics"
-  branch = "master"
+  branch = "trireme_kubernetes"
 
 [[constraint]]
   name = "github.com/aporeto-inc/trireme-lib"
