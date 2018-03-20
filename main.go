@@ -116,23 +116,25 @@ func launch(config *config.Configuration) {
 
 	// Monitor configuration
 	monitorOptions := []monitor.Options{
-		monitor.OptionMonitorKubernetes(),
+		monitor.OptionMonitorKubernetes(
+			monitor.SubOptionMonitorKubernetesKubeconfig(""),
+		),
 		monitor.OptionPolicyResolver(kubernetesPolicyResolver),
 		monitor.OptionCollector(collectorInstance),
 	}
 
 	m, err := monitor.NewMonitors(monitorOptions...)
 	if err != nil {
-		zap.L().Fatal("Unable to initialize monitor: ", zap.Error(err))
+		zap.L().Fatal("Unable to initialize monitor", zap.Error(err))
 	}
 
 	if err := ctrl.Run(ctx); err != nil {
-		zap.L().Fatal("Failed to start controller")
+		zap.L().Fatal("Failed to start controller", zap.Error(err))
 	}
 
 	// Start all the go routines.
 	if err := m.Run(ctx); err != nil {
-		zap.L().Fatal("Failed to start monitor")
+		zap.L().Fatal("Failed to start monitor", zap.Error(err))
 	}
 
 	zap.L().Debug("Trireme started")
