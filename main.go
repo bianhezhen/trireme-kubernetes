@@ -116,9 +116,7 @@ func launch(config *config.Configuration) {
 
 	// Monitor configuration
 	monitorOptions := []monitor.Options{
-		monitor.OptionMonitorDocker(
-			monitor.SubOptionMonitorDockerFlags(true, false),
-		),
+		monitor.OptionMonitorKubernetes(),
 		monitor.OptionPolicyResolver(kubernetesPolicyResolver),
 		monitor.OptionCollector(collectorInstance),
 	}
