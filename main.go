@@ -117,7 +117,8 @@ func launch(config *config.Configuration) {
 	// Monitor configuration
 	monitorOptions := []monitor.Options{
 		monitor.OptionMonitorKubernetes(
-			monitor.SubOptionMonitorKubernetesKubeconfig(""),
+			monitor.SubOptionMonitorKubernetesKubeconfig(config.KubeconfigPath),
+			monitor.SubOptionMonitorKubernetesNodename(config.KubeNodeName),
 		),
 		monitor.OptionPolicyResolver(kubernetesPolicyResolver),
 		monitor.OptionCollector(collectorInstance),
