@@ -139,7 +139,12 @@ func launch(config *config.Configuration) {
 	}
 
 	zap.L().Debug("Trireme started")
-	kubernetesPolicyResolver.Run()
+
+	// Launching Trireme-Kubernetes and the Policy resolver and waiting for thw associarted initial sync to finish theough the chanel
+	syncChan := make(chan struct{})
+	kubernetesPolicyResolver.Run(syncChan)
+	<-syncChan
+
 	zap.L().Debug("PolicyResolver started")
 
 	c := make(chan os.Signal, 1)

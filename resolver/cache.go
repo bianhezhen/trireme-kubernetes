@@ -13,7 +13,7 @@ type podCacheEntry struct {
 }
 
 // Cache keeps all the state needed for the integration.
-type cache struct {
+type cacheStruct struct {
 	// namespaceActivation is a map between the namespaceName and the corresponding Watcher struct.
 	namespaceActivation map[string]*NamespaceWatcher
 	// contextIDCache keeps a mapping between a POD/Namespace name and the corresponding contextID from Trireme.
@@ -21,8 +21,8 @@ type cache struct {
 	sync.RWMutex
 }
 
-func newCache() *cache {
-	return &cache{
+func newCache() *cacheStruct {
+	return &cacheStruct{
 		namespaceActivation: map[string]*NamespaceWatcher{},
 		podCache:            map[string]podCacheEntry{},
 	}
@@ -32,7 +32,7 @@ func kubePodIdentifier(podName string, podNamespace string) string {
 	return podNamespace + "/" + podName
 }
 
-func (c *cache) addPodToCache(contextID string, runtime policy.RuntimeReader, podName string, podNamespace string) {
+func (c *cacheStruct) addPodToCache(contextID string, runtime policy.RuntimeReader, podName string, podNamespace string) {
 	c.Lock()
 	defer c.Unlock()
 	kubeIdentifier := kubePodIdentifier(podName, podNamespace)
@@ -42,7 +42,7 @@ func (c *cache) addPodToCache(contextID string, runtime policy.RuntimeReader, po
 	}
 }
 
-func (c *cache) contextIDByPodName(podName string, podNamespace string) (string, error) {
+func (c *cacheStruct) contextIDByPodName(podName string, podNamespace string) (string, error) {
 	c.Lock()
 	defer c.Unlock()
 	kubeIdentifier := kubePodIdentifier(podName, podNamespace)
@@ -53,7 +53,7 @@ func (c *cache) contextIDByPodName(podName string, podNamespace string) (string,
 	return cacheEntry.contextID, nil
 }
 
-func (c *cache) runtimeByPodName(podName string, podNamespace string) (policy.RuntimeReader, error) {
+func (c *cacheStruct) runtimeByPodName(podName string, podNamespace string) (policy.RuntimeReader, error) {
 	c.Lock()
 	defer c.Unlock()
 	kubeIdentifier := kubePodIdentifier(podName, podNamespace)
@@ -64,7 +64,7 @@ func (c *cache) runtimeByPodName(podName string, podNamespace string) (policy.Ru
 	return cacheEntry.runtime, nil
 }
 
-func (c *cache) deleteFromCacheByPodName(podName string, podNamespace string) error {
+func (c *cacheStruct) deleteFromCacheByPodName(podName string, podNamespace string) error {
 	c.Lock()
 	defer c.Unlock()
 	kubeIdentifier := kubePodIdentifier(podName, podNamespace)
@@ -76,20 +76,20 @@ func (c *cache) deleteFromCacheByPodName(podName string, podNamespace string) er
 	return nil
 }
 
-func (c *cache) getNamespaceWatcher(namespace string) (*NamespaceWatcher, bool) {
+func (c *cacheStruct) getNamespaceWatcher(namespace string) (*NamespaceWatcher, bool) {
 	c.Lock()
 	defer c.Unlock()
 	namespaceWatcher, ok := c.namespaceActivation[namespace]
 	return namespaceWatcher, ok
 }
 
-func (c *cache) activateNamespaceWatcher(namespace string, namespaceWatcher *NamespaceWatcher) {
+func (c *cacheStruct) activateNamespaceWatcher(namespace string, namespaceWatcher *NamespaceWatcher) {
 	c.Lock()
 	defer c.Unlock()
 	c.namespaceActivation[namespace] = namespaceWatcher
 }
 
-func (c *cache) deactivateNamespaceWatcher(namespace string) {
+func (c *cacheStruct) deactivateNamespaceWatcher(namespace string) {
 	c.Lock()
 	defer c.Unlock()
 	namespaceWatcher, ok := c.namespaceActivation[namespace]
@@ -100,7 +100,7 @@ func (c *cache) deactivateNamespaceWatcher(namespace string) {
 	delete(c.namespaceActivation, namespace)
 }
 
-func (c *cache) isNamespaceActive(namespace string) bool {
+func (c *cacheStruct) isNamespaceActive(namespace string) bool {
 	c.Lock()
 	defer c.Unlock()
 	_, ok := c.namespaceActivation[namespace]

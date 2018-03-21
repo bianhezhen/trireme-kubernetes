@@ -5,6 +5,7 @@ package resolver
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/aporeto-inc/trireme-kubernetes/kubernetes"
 
@@ -16,6 +17,7 @@ import (
 	api "k8s.io/api/core/v1"
 	networking "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/client-go/tools/cache"
 
 	"go.uber.org/zap"
 )
@@ -27,7 +29,7 @@ type KubernetesPolicy struct {
 	controller       controller.TriremeController
 	triremeNetworks  []string
 	KubernetesClient *kubernetes.Client
-	cache            *cache
+	cache            *cacheStruct
 	stopAll          chan struct{}
 }
 
@@ -254,13 +256,18 @@ func (k *KubernetesPolicy) deactivateNamespace(namespace *api.Namespace) error {
 
 // Run starts the KubernetesPolicer by watching for Namespace Changes.
 // Run is blocking. Use go
-func (k *KubernetesPolicy) Run() {
+func (k *KubernetesPolicy) Run(sync chan struct{}) {
 	k.stopAll = make(chan struct{})
 	_, nsController := k.KubernetesClient.CreateNamespaceController(
 		k.addNamespace,
 		k.deleteNamespace,
 		k.updateNamespace)
+	nsController.HasSynced()
 	go nsController.Run(k.stopAll)
+
+	if sync != nil {
+		go hasSynced(sync, nsController)
+	}
 }
 
 // Stop Stops all the channels
@@ -406,4 +413,15 @@ func (k *KubernetesPolicy) updateNetworkPolicy(oldNP, updatedNP *networking.Netw
 		}
 	}
 	return nil
+}
+
+// hasSynced sends an event on the Sync chan when the attachedController finished syncing.
+func hasSynced(sync chan struct{}, controller cache.Controller) {
+	for true {
+		if controller.HasSynced() {
+			sync <- struct{}{}
+			return
+		}
+		<-time.After(100 * time.Millisecond)
+	}
 }
