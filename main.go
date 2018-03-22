@@ -129,6 +129,12 @@ func launch(config *config.Configuration) {
 		zap.L().Fatal("Unable to initialize monitor", zap.Error(err))
 	}
 
+	// Launching Trireme-Kubernetes and the Policy resolver and waiting for thw associarted initial sync to finish theough the chanel
+	// TODO: Use context here instead ?
+	syncChan := make(chan struct{})
+	kubernetesPolicyResolver.Run(syncChan)
+	<-syncChan
+
 	if err := ctrl.Run(ctx); err != nil {
 		zap.L().Fatal("Failed to start controller", zap.Error(err))
 	}
@@ -139,11 +145,6 @@ func launch(config *config.Configuration) {
 	}
 
 	zap.L().Debug("Trireme started")
-
-	// Launching Trireme-Kubernetes and the Policy resolver and waiting for thw associarted initial sync to finish theough the chanel
-	syncChan := make(chan struct{})
-	kubernetesPolicyResolver.Run(syncChan)
-	<-syncChan
 
 	zap.L().Debug("PolicyResolver started")
 
