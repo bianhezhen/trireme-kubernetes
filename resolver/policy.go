@@ -16,7 +16,6 @@ import (
 
 	api "k8s.io/api/core/v1"
 	networking "k8s.io/api/networking/v1"
-	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/tools/cache"
 
 	"go.uber.org/zap"
@@ -51,16 +50,6 @@ func NewKubernetesPolicy(ctx context.Context, controller controller.TriremeContr
 // isNamespaceKubeSystem returns true if the namespace is kube-system
 func isNamespaceKubeSystem(namespace string) bool {
 	return namespace == "kube-system"
-}
-
-func isPolicyUpdateNeeded(oldPod, newPod *api.Pod) bool {
-	if !(oldPod.Status.PodIP == newPod.Status.PodIP) {
-		return true
-	}
-	if !labels.Equals(oldPod.GetLabels(), newPod.GetLabels()) {
-		return true
-	}
-	return false
 }
 
 // ResolvePolicy generates the Policy for the target PU.
