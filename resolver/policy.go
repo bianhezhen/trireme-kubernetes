@@ -224,14 +224,6 @@ func (k *KubernetesPolicy) updatePodPolicy(pod *api.Pod) error {
 func (k *KubernetesPolicy) activateNamespace(namespace *api.Namespace) error {
 	zap.L().Info("Activating namespace for NetworkPolicies", zap.String("namespace", namespace.GetName()))
 
-	podControllerStop := make(chan struct{})
-	podStore, podController := k.KubernetesClient.CreateLocalPodController(namespace.GetName(),
-		k.addPod,
-		k.deletePod,
-		k.updatePod)
-	go podController.Run(podControllerStop)
-	zap.L().Debug("Pod Controller created", zap.String("namespace", namespace.GetName()))
-
 	npControllerStop := make(chan struct{})
 	npStore, npController := k.KubernetesClient.CreateNetworkPoliciesController(namespace.Name,
 		k.addNetworkPolicy,
@@ -240,7 +232,7 @@ func (k *KubernetesPolicy) activateNamespace(namespace *api.Namespace) error {
 	go npController.Run(npControllerStop)
 	zap.L().Debug("NetworkPolicy controller created", zap.String("namespace", namespace.GetName()))
 
-	namespaceWatcher := NewNamespaceWatcher(namespace.Name, podStore, podController, podControllerStop, npStore, npController, npControllerStop)
+	namespaceWatcher := NewNamespaceWatcher(namespace.Name, npStore, npController, npControllerStop)
 	k.cache.activateNamespaceWatcher(namespace.GetName(), namespaceWatcher)
 	zap.L().Debug("Finished namespace activation", zap.String("namespace", namespace.GetName()))
 
@@ -302,48 +294,6 @@ func (k *KubernetesPolicy) updateNamespace(oldNS, updatedNS *api.Namespace) erro
 	// GA Policies. No changes.
 	return nil
 
-}
-
-func (k *KubernetesPolicy) addPod(addedPod *api.Pod) error {
-	zap.L().Debug("Pod Added", zap.String("name", addedPod.GetName()), zap.String("namespace", addedPod.GetNamespace()))
-
-	// Checking to see if the pod already appeared in Trireme. Returning directly if it didn't appear yet.
-	// TODO: Find a way to do a single lookup
-	_, err := k.cache.contextIDByPodName(addedPod.GetName(), addedPod.GetNamespace())
-	if err != nil {
-		zap.L().Debug("Pod not found in cache yet. Probably the corresponding container didn't appear yet in Trireme-lib", zap.String("name", addedPod.GetName()), zap.String("namespace", addedPod.GetNamespace()))
-		return nil
-	}
-
-	err = k.updatePodPolicy(addedPod)
-	if err != nil {
-		return fmt.Errorf("Failed UpdatePolicy on NewPodEvent. %s", err)
-	}
-	return nil
-}
-
-func (k *KubernetesPolicy) deletePod(deletedPod *api.Pod) error {
-	zap.L().Debug("Pod Deleted", zap.String("name", deletedPod.GetName()), zap.String("namespace", deletedPod.GetNamespace()))
-
-	err := k.cache.deleteFromCacheByPodName(deletedPod.GetName(), deletedPod.GetNamespace())
-	if err != nil {
-		return fmt.Errorf("Error for PodDelete: %s ", err)
-	}
-	return nil
-}
-
-func (k *KubernetesPolicy) updatePod(oldPod, updatedPod *api.Pod) error {
-	zap.L().Debug("Pod Modified detected", zap.String("name", updatedPod.GetName()), zap.String("namespace", updatedPod.GetNamespace()))
-
-	if !isPolicyUpdateNeeded(oldPod, updatedPod) {
-		zap.L().Debug("No modified labels for Pod", zap.String("name", updatedPod.GetName()), zap.String("namespace", updatedPod.GetNamespace()))
-		return nil
-	}
-	err := k.updatePodPolicy(updatedPod)
-	if err != nil {
-		return fmt.Errorf("Failed UpdatePolicy on ModifiedPodEvent. Probably related to ongoing delete: %s", err)
-	}
-	return nil
 }
 
 func (k *KubernetesPolicy) addNetworkPolicy(addedNP *networking.NetworkPolicy) error {
