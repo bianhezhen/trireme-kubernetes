@@ -57,15 +57,6 @@ func isNamespaceKubeSystem(namespace string) bool {
 // Kubernetes NetworkPolicies on the Pod to which the PU belongs.
 func (k *KubernetesPolicy) ResolvePolicy(contextID string, runtime policy.RuntimeReader) (*policy.PUPolicy, error) {
 
-	// Only the Infra Container should be policed. All the others should be AllowAll.
-	// The Infra container can be found by checking env. variable.
-	tagContent, ok := runtime.Tag(KubernetesContainerName)
-	if !ok || tagContent != KubernetesInfraContainerName {
-		// return AllowAll
-		zap.L().Info("Container is not Infra Container. AllowingAll", zap.String("contextID", contextID))
-		return notInfraContainerPolicy(), nil
-	}
-
 	podName, ok := runtime.Tag(KubernetesPodName)
 	if !ok {
 		return nil, fmt.Errorf("Error getting Kubernetes Pod name")
