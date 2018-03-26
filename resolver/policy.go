@@ -56,12 +56,11 @@ func isNamespaceKubeSystem(namespace string) bool {
 // The policy for the PU will be based on the defined
 // Kubernetes NetworkPolicies on the Pod to which the PU belongs.
 func (k *KubernetesPolicy) ResolvePolicy(contextID string, runtime policy.RuntimeReader) (*policy.PUPolicy, error) {
-
-	podName, ok := runtime.Tag(KubernetesPodName)
+	podName, ok := runtime.Tag(UpstreamNameIdentifier)
 	if !ok {
 		return nil, fmt.Errorf("Error getting Kubernetes Pod name")
 	}
-	podNamespace, ok := runtime.Tag(KubernetesPodNamespace)
+	podNamespace, ok := runtime.Tag(UpstreamNamespaceIdentifier)
 	if !ok {
 		return nil, fmt.Errorf("Error getting Kubernetes Pod namespace")
 	}
