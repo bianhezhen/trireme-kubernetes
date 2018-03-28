@@ -25,6 +25,7 @@ import (
 // It implements the Trireme Resolver interface and implements the policies defined
 // by Kubernetes NetworkPolicy API.
 type KubernetesPolicy struct {
+	globalContext    context.Context
 	controller       controller.TriremeController
 	triremeNetworks  []string
 	KubernetesClient *kubernetes.Client
@@ -40,6 +41,7 @@ func NewKubernetesPolicy(ctx context.Context, controller controller.TriremeContr
 	}
 
 	return &KubernetesPolicy{
+		globalContext:    ctx,
 		controller:       controller,
 		triremeNetworks:  triremeNetworks,
 		KubernetesClient: client,
@@ -72,10 +74,9 @@ func (k *KubernetesPolicy) ResolvePolicy(contextID string, runtime policy.Runtim
 
 // HandlePUEvent  is called by Trireme for notification that a specific PU got an event.
 func (k *KubernetesPolicy) HandlePUEvent(ctx context.Context, puID string, event common.Event, runtime policy.RuntimeReader) error {
-	zap.L().Debug("Trireme Container Event", zap.String("contextID", puID), zap.Any("eventType", event))
+	zap.L().Debug("Trireme Container Event", zap.String("contextID", puID), zap.String("eventType", string(event)))
 
 	// We only add on the start of a DockeeContainer. All the other events are directly comming from Kubernetes API.
-
 	switch event {
 	case common.EventStart:
 		resolvedPolicy, err := k.ResolvePolicy(puID, runtime)
@@ -197,13 +198,12 @@ func (k *KubernetesPolicy) deactivateNamespace(namespace *api.Namespace) error {
 // Run starts the KubernetesPolicer by watching for Namespace Changes.
 // Run is blocking. Use go
 func (k *KubernetesPolicy) Run(sync chan struct{}) {
-	k.stopAll = make(chan struct{})
 	_, nsController := k.KubernetesClient.CreateNamespaceController(
 		k.addNamespace,
 		k.deleteNamespace,
 		k.updateNamespace)
 	nsController.HasSynced()
-	go nsController.Run(k.stopAll)
+	go nsController.Run(k.globalContext.Done())
 
 	if sync != nil {
 		go hasSynced(sync, nsController)
