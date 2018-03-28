@@ -198,12 +198,13 @@ func (k *KubernetesPolicy) deactivateNamespace(namespace *api.Namespace) error {
 // Run starts the KubernetesPolicer by watching for Namespace Changes.
 // Run is blocking. Use go
 func (k *KubernetesPolicy) Run(sync chan struct{}) {
+	k.stopAll = make(chan struct{})
 	_, nsController := k.KubernetesClient.CreateNamespaceController(
 		k.addNamespace,
 		k.deleteNamespace,
 		k.updateNamespace)
 	nsController.HasSynced()
-	go nsController.Run(k.globalContext.Done())
+	go nsController.Run(k.stopAll)
 
 	if sync != nil {
 		go hasSynced(sync, nsController)
