@@ -67,7 +67,7 @@ func (k *KubernetesPolicy) ResolvePolicy(contextID string, runtime policy.Runtim
 
 	// Keep the mapping in cache: ContextID <--> PodNamespace/PodName
 	k.cache.addPodToCache(contextID, runtime, podName, podNamespace)
-	return k.resolvePodPolicy(podName, podNamespace)
+	return k.resolvePodPolicy(runtime, podName, podNamespace)
 }
 
 // HandlePUEvent  is called by Trireme for notification that a specific PU got an event.
@@ -90,6 +90,7 @@ func (k *KubernetesPolicy) HandlePUEvent(ctx context.Context, puID string, event
 		}
 
 	case common.EventCreate:
+	case common.EventUpdate:
 	case common.EventDestroy:
 	case common.EventPause:
 	case common.EventUnpause:
@@ -99,42 +100,9 @@ func (k *KubernetesPolicy) HandlePUEvent(ctx context.Context, puID string, event
 }
 
 // resolvePodPolicy generates the Trireme Policy for a specific Kube Pod and Namespace.
-func (k *KubernetesPolicy) resolvePodPolicy(kubernetesPod string, kubernetesNamespace string) (*policy.PUPolicy, error) {
+func (k *KubernetesPolicy) resolvePodPolicy(runtime policy.RuntimeReader, kubernetesPod string, kubernetesNamespace string) (*policy.PUPolicy, error) {
 	// Query Kube API to get the Pod's label and IP.
 	zap.L().Info("Resolving policy for POD", zap.String("name", kubernetesPod), zap.String("namespace", kubernetesNamespace))
-	pod, err := k.KubernetesClient.Pod(kubernetesPod, kubernetesNamespace)
-	if err != nil {
-		return nil, fmt.Errorf("Couldn't get labels for pod %s : %v", kubernetesPod, err)
-	}
-
-	// If IP is empty, wait for an UpdatePodEvent with the Actual PodIP. Not ready to be activated now.
-	if pod.Status.PodIP == "" {
-		return notInfraContainerPolicy(), nil
-	}
-	// If Pod is running in the hostNS , no activation (not supported).
-	if pod.Status.PodIP == pod.Status.HostIP {
-		return notInfraContainerPolicy(), nil
-	}
-
-	podLabels := pod.GetLabels()
-	if podLabels == nil {
-		return notInfraContainerPolicy(), nil
-	}
-
-	// Check if the Pod's namespace is activated.
-	if !k.cache.isNamespaceActive(kubernetesNamespace) {
-
-		zap.L().Info("Pod namespace is not NetworkPolicyActivated, AllowAll", zap.String("podNamespace", kubernetesNamespace))
-		// adding the namespace as an extra label.
-		podLabels["@namespace"] = kubernetesNamespace
-		ips := policy.ExtendedMap{policy.DefaultNamespace: pod.Status.PodIP}
-		allowAllPuPolicy := allowAllPolicy(policy.NewTagStoreFromMap(podLabels), ips, k.triremeNetworks)
-
-		return allowAllPuPolicy, nil
-	}
-
-	// adding the namespace as an extra label.
-	podLabels["@namespace"] = kubernetesNamespace
 
 	nsNetworkPolicies, err := k.KubernetesClient.NetworkPolicies(kubernetesNamespace)
 	if err != nil {
@@ -153,9 +121,10 @@ func (k *KubernetesPolicy) resolvePodPolicy(kubernetesPod string, kubernetesName
 
 	allNamespaces, _ := k.KubernetesClient.AllNamespaces()
 
-	ips := policy.ExtendedMap{policy.DefaultNamespace: pod.Status.PodIP}
+	//ips := policy.ExtendedMap{policy.DefaultNamespace: pod.Status.PodIP}
+	ips := policy.ExtendedMap{}
 
-	puPolicy, err := generatePUPolicy(ingressPodRules, egressPodRules, kubernetesNamespace, allNamespaces, policy.NewTagStoreFromMap(podLabels), ips, k.triremeNetworks)
+	puPolicy, err := generatePUPolicy(ingressPodRules, egressPodRules, kubernetesNamespace, allNamespaces, runtime.Tags(), ips, k.triremeNetworks)
 	if err != nil {
 		return nil, err
 	}
@@ -185,7 +154,7 @@ func (k *KubernetesPolicy) updatePodPolicy(pod *api.Pod) error {
 	}
 
 	// Regenerating a Full Policy and Tags.
-	containerPolicy, err := k.resolvePodPolicy(podName, podNamespace)
+	containerPolicy, err := k.resolvePodPolicy(runtime, podName, podNamespace)
 	if err != nil {
 		return fmt.Errorf("Couldn't generate a Pod Policy for pod update %s", err)
 	}

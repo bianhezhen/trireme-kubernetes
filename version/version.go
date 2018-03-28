@@ -4,4 +4,4 @@ package version
 const VERSION = "0.11"
 
 // REVISION is the revision of Trireme-Kubernetes
-const REVISION = "33a8baf795fcf6f47051c78d5dd8a5fd8f870e37"
+const REVISION = "dc29b66d996e7d1e05bb363cba49190bb1841edf"
