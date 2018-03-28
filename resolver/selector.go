@@ -100,7 +100,7 @@ func portSelector(ports []networking.NetworkPolicyPort) []policy.KeyValueOperato
 
 func namespaceSelector(namespace string) []policy.KeyValueOperator {
 	kvo := policy.KeyValueOperator{
-		Key:      "@namespace",
+		Key:      UpstreamNamespaceIdentifier,
 		Operator: policy.Equal,
 		Value:    []string{namespace},
 	}
@@ -439,7 +439,7 @@ func namespaceIngressRules(rule *networking.NetworkPolicyIngressRule, podNamespa
 		return nil, nil
 	}
 	clause := policy.KeyValueOperator{
-		Key:      "@namespace",
+		Key:      UpstreamNamespaceIdentifier,
 		Operator: policy.Equal,
 		Value:    allowedNamespaces,
 	}
@@ -485,7 +485,7 @@ func namespaceEgressRules(rule *networking.NetworkPolicyEgressRule, podNamespace
 		return nil, nil
 	}
 	clause := policy.KeyValueOperator{
-		Key:      "@namespace",
+		Key:      UpstreamNamespaceIdentifier,
 		Operator: policy.Equal,
 		Value:    allowedNamespaces,
 	}
@@ -558,7 +558,7 @@ func aclsAllowAll() []policy.IPRule {
 func rulesAllowAll() []policy.TagSelector {
 	completeClause := []policy.KeyValueOperator{
 		policy.KeyValueOperator{
-			Key:      "@namespace",
+			Key:      UpstreamNamespaceIdentifier,
 			Operator: policy.Equal,
 			Value:    []string{"*"},
 		},
