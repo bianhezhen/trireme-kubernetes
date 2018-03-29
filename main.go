@@ -157,6 +157,10 @@ func launch(config *config.Configuration) {
 	// Cancel al routines that support ctx
 	cancel()
 
+	if err := ctrl.CleanUp(); err != nil {
+		zap.L().Warn("Issue while cleaning up", zap.Error(err))
+	}
+
 	zap.L().Debug("Stop signal received")
 	kubernetesPolicyResolver.Stop()
 	zap.L().Debug("KubernetesPolicy stopped")
