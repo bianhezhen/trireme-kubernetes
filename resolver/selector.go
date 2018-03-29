@@ -509,15 +509,9 @@ func generatePUPolicy(ingressKubeRules *[]networking.NetworkPolicyIngressRule, e
 		return nil, fmt.Errorf("Couldn't generate ingress rules: %s", err)
 	}
 
-	// Feature flag for egressPolicies.
-	egressRulesList, egressACLs, err := rulesAndACLsAllowAll()
+	egressRulesList, egressACLs, err := generateEgressRulesList(egressKubeRules, podNamespace, allNamespaces, tags, ips, triremeNets)
 	if err != nil {
-		return nil, fmt.Errorf("Error genrating allowAll policy for egress")
-	}
-
-	egressRulesList, egressACLs, err = generateEgressRulesList(egressKubeRules, podNamespace, allNamespaces, tags, ips, triremeNets)
-	if err != nil {
-		return nil, fmt.Errorf("Couldn't generate ingress rules: %s", err)
+		return nil, fmt.Errorf("Couldn't generate egress rules: %s", err)
 	}
 
 	excluded := []string{}
