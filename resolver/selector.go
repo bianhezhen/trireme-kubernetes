@@ -301,13 +301,19 @@ func aclEgressRules(rule networking.NetworkPolicyEgressRule) ([]policy.IPRule, e
 	return aclPolicy, nil
 }
 
+// generateIngressRulesList generates the Trireme receiver rules and ACLs based on a set of Kubernetes IngressRules that apply to a pod.
 func generateIngressRulesList(ingressKubeRules *[]networking.NetworkPolicyIngressRule, podNamespace string, allNamespaces *api.NamespaceList) ([]policy.TagSelector, []policy.IPRule, error) {
+
+	// with rules==nil, it means allow all.
 	if ingressKubeRules == nil {
+		fmt.Println("ingress nil")
 		return rulesAndACLsAllowAll()
 	}
 
+	// If there are rules, but length ==0 (meaning no actual rules to allow), then it means deny all.
 	if len(*ingressKubeRules) == 0 {
-		return rulesAndACLsAllowAll()
+		fmt.Println("ingress length 0")
+		return rulesAndACLsDenyAll()
 	}
 
 	receiverRules := []policy.TagSelector{}
@@ -361,7 +367,7 @@ func generateEgressRulesList(egressKubeRules *[]networking.NetworkPolicyEgressRu
 	}
 
 	if len(*egressKubeRules) == 0 {
-		return rulesAndACLsAllowAll()
+		return rulesAndACLsDenyAll()
 	}
 
 	transmitterRules := []policy.TagSelector{}
@@ -565,6 +571,22 @@ func rulesAllowAll() []policy.TagSelector {
 	}
 
 	return []policy.TagSelector{selector}
+}
+
+func rulesAndACLsDenyAll() ([]policy.TagSelector, []policy.IPRule, error) {
+	return rulesDenyAll(), aclsDenyAll(), nil
+}
+
+// aclsDenyAll generate the IPRules used as ACLs outside of Trireme cluster.
+func aclsDenyAll() []policy.IPRule {
+
+	return []policy.IPRule{}
+}
+
+// rulesDenyAll generate the IPRules used as ACLs outside of Trireme cluster.
+func rulesDenyAll() []policy.TagSelector {
+
+	return []policy.TagSelector{}
 }
 
 // allowAllPolicy returns a simple generic policy used in order to not police the PU.
