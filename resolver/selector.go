@@ -301,7 +301,7 @@ func aclEgressRules(rule networking.NetworkPolicyEgressRule) ([]policy.IPRule, e
 	return aclPolicy, nil
 }
 
-func generateIngressRulesList(ingressKubeRules *[]networking.NetworkPolicyIngressRule, podNamespace string, allNamespaces *api.NamespaceList, tags *policy.TagStore, ips policy.ExtendedMap, triremeNets []string) ([]policy.TagSelector, []policy.IPRule, error) {
+func generateIngressRulesList(ingressKubeRules *[]networking.NetworkPolicyIngressRule, podNamespace string, allNamespaces *api.NamespaceList) ([]policy.TagSelector, []policy.IPRule, error) {
 	if ingressKubeRules == nil {
 		return rulesAndACLsAllowAll()
 	}
@@ -355,7 +355,7 @@ func generateIngressRulesList(ingressKubeRules *[]networking.NetworkPolicyIngres
 	return receiverRules, ipRules, nil
 }
 
-func generateEgressRulesList(egressKubeRules *[]networking.NetworkPolicyEgressRule, podNamespace string, allNamespaces *api.NamespaceList, tags *policy.TagStore, ips policy.ExtendedMap, triremeNets []string) ([]policy.TagSelector, []policy.IPRule, error) {
+func generateEgressRulesList(egressKubeRules *[]networking.NetworkPolicyEgressRule, podNamespace string, allNamespaces *api.NamespaceList) ([]policy.TagSelector, []policy.IPRule, error) {
 	if egressKubeRules == nil {
 		return rulesAndACLsAllowAll()
 	}
@@ -504,12 +504,12 @@ func namespaceEgressRules(rule *networking.NetworkPolicyEgressRule, podNamespace
 // generatePUPolicy creates a PUPolicy representation
 func generatePUPolicy(ingressKubeRules *[]networking.NetworkPolicyIngressRule, egressKubeRules *[]networking.NetworkPolicyEgressRule, podNamespace string, allNamespaces *api.NamespaceList, tags *policy.TagStore, ips policy.ExtendedMap, triremeNets []string) (*policy.PUPolicy, error) {
 
-	ingressRulesList, ingressACLs, err := generateIngressRulesList(ingressKubeRules, podNamespace, allNamespaces, tags, ips, triremeNets)
+	ingressRulesList, ingressACLs, err := generateIngressRulesList(ingressKubeRules, podNamespace, allNamespaces)
 	if err != nil {
 		return nil, fmt.Errorf("Couldn't generate ingress rules: %s", err)
 	}
 
-	egressRulesList, egressACLs, err := generateEgressRulesList(egressKubeRules, podNamespace, allNamespaces, tags, ips, triremeNets)
+	egressRulesList, egressACLs, err := generateEgressRulesList(egressKubeRules, podNamespace, allNamespaces)
 	if err != nil {
 		return nil, fmt.Errorf("Couldn't generate egress rules: %s", err)
 	}
