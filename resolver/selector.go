@@ -306,13 +306,11 @@ func generateIngressRulesList(ingressKubeRules *[]networking.NetworkPolicyIngres
 
 	// with rules==nil, it means allow all.
 	if ingressKubeRules == nil {
-		fmt.Println("ingress nil")
 		return rulesAndACLsAllowAll()
 	}
 
 	// If there are rules, but length ==0 (meaning no actual rules to allow), then it means deny all.
 	if len(*ingressKubeRules) == 0 {
-		fmt.Println("ingress length 0")
 		return rulesAndACLsDenyAll()
 	}
 
@@ -338,7 +336,7 @@ func generateIngressRulesList(ingressKubeRules *[]networking.NetworkPolicyIngres
 		}
 
 		// Not matching any traffic. Go to next rule
-		if len(rule.From) == 0 || len(rule.Ports) == 0 {
+		if len(rule.From) == 0 {
 			continue
 		}
 
@@ -362,10 +360,12 @@ func generateIngressRulesList(ingressKubeRules *[]networking.NetworkPolicyIngres
 }
 
 func generateEgressRulesList(egressKubeRules *[]networking.NetworkPolicyEgressRule, podNamespace string, allNamespaces *api.NamespaceList) ([]policy.TagSelector, []policy.IPRule, error) {
+	// with rules==nil, it means allow all.
 	if egressKubeRules == nil {
 		return rulesAndACLsAllowAll()
 	}
 
+	// If there are rules, but length ==0 (meaning no actual rules to allow), then it means deny all.
 	if len(*egressKubeRules) == 0 {
 		return rulesAndACLsDenyAll()
 	}
@@ -600,11 +600,6 @@ func allowAllPolicy(tags *policy.TagStore, ips policy.ExtendedMap, triremeNets [
 	excluded := []string{}
 
 	return policy.NewPUPolicy("", policy.Police, ingressACLs, egressACLs, nil, receivingRules, tags, tags, ips, triremeNets, excluded, nil, nil, nil, nil)
-}
-
-// notInfraContainerPolicy is a policy that should apply to the other containers in a pod that are not the infra container.
-func notInfraContainerPolicy() *policy.PUPolicy {
-	return policy.NewPUPolicyWithDefaults()
 }
 
 // logRules logs all the rules currently used. Useful for debugging.
