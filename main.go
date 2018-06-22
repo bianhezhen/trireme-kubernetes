@@ -16,11 +16,11 @@ import (
 	"github.com/aporeto-inc/trireme-kubernetes/utils"
 	"github.com/aporeto-inc/trireme-kubernetes/version"
 
-	"github.com/aporeto-inc/trireme-lib/collector"
-	"github.com/aporeto-inc/trireme-lib/controller"
-	"github.com/aporeto-inc/trireme-lib/controller/pkg/fqconfig"
-	"github.com/aporeto-inc/trireme-lib/controller/pkg/secrets"
-	"github.com/aporeto-inc/trireme-lib/monitor"
+	"go.aporeto.io/trireme-lib/collector"
+	"go.aporeto.io/trireme-lib/controller"
+	"go.aporeto.io/trireme-lib/controller/pkg/fqconfig"
+	"go.aporeto.io/trireme-lib/controller/pkg/secrets"
+	"go.aporeto.io/trireme-lib/monitor"
 
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"

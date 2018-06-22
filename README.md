@@ -15,7 +15,7 @@ One of its powerful features is that you can deploy it to _multiple_ Kubernetes 
 
 Trireme-Kubernetes builds upon a powerful concept of identity based on standard Kubernetes tags.
 
-It is based on the [Trireme Zero-Trust library](https://github.com/aporeto-inc/trireme-lib).
+It is based on the [Trireme Zero-Trust library](https://go.aporeto.io/trireme-lib).
 
 ----
 **More on Kubernetes network policies:**
@@ -140,7 +140,7 @@ Kubernetes does not enforce natively NetworkPolicies and requires a third party 
 
 Unlike most of the traditional solutions, Trireme is not tight together with a complex networking solution. It therefore gives you the freedom to use one Networking implementation if needed and another NetworkPolicy provider. It acts as the controller to enforce the defined Kubernetes network policies.
 
-Trireme-kubernetes does not rely on any distributed control-plane or setup (no need to plug into `etcd`). Enforcement is performed directly on every node without any shared state propagation (more info at  [Trireme ](https://github.com/aporeto-inc/trireme-lib))
+Trireme-kubernetes does not rely on any distributed control-plane or setup (no need to plug into `etcd`). Enforcement is performed directly on every node without any shared state propagation (more info at  [Trireme ](https://go.aporeto.io/trireme-lib))
 
 
 ## Advanced deployment and installation options.

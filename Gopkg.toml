@@ -10,7 +10,7 @@
   branch = "master"
 
 [[constraint]]
-  name = "github.com/aporeto-inc/trireme-lib"
+  name = "go.aporeto.io/trireme-lib"
   version  = "^8.0.0"
 
 [[override]]

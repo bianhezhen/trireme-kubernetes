@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/aporeto-inc/trireme-lib/policy"
+	"go.aporeto.io/trireme-lib/policy"
 )
 
 type podCacheEntry struct {

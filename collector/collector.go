@@ -1,8 +1,8 @@
 package collector
 
 import (
-	"github.com/aporeto-inc/trireme-lib/collector"
 	"github.com/aporeto-inc/trireme-statistics/influxdb"
+	"go.aporeto.io/trireme-lib/collector"
 	"go.uber.org/zap"
 )
 
