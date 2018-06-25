@@ -16,7 +16,17 @@ codegen:
 	echo '// REVISION is the revision of Trireme-Kubernetes' >> $(VERSION_FILE)
 	echo 'const REVISION = "$(REVISION)"' >> $(VERSION_FILE)
 
-build: codegen
+remote_build:
+	cd remotebuilder/cmd/remoteenforcer && go build -ldflags -s -ldflags -w
+	pwd
+	cd ../../../
+	go-bindata -pkg remoteenforcer remotebuilder/cmd/remoteenforcer/remoteenforcer
+	rm -rf static/remoteenforcer
+	mkdir -p static/remoteenforcer
+	mv bindata.go static/remoteenforcer/bindata.go
+	rm -rf remotebuilder/cmd/remoteenforcer/remoteenforcer
+
+build: codegen remote_build
 	CGO_ENABLED=1 go build -a -installsuffix cgo
 
 package: build

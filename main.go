@@ -52,6 +52,9 @@ func launch(config *config.Configuration) {
 
 	zap.L().Debug("Config used", zap.Any("Config", config))
 
+	// Remote Enforcer Installer
+	installRemoteEnforcer()
+
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -154,20 +157,10 @@ func launch(config *config.Configuration) {
 	kubernetesPolicyResolver.Stop()
 	zap.L().Debug("KubernetesPolicy stopped")
 
+	uninstallRemoteEnforcer()
+	zap.L().Debug("Removed remoteenforcer binary")
+
 	zap.L().Info("Everything stopped. Bye Kubernetes!")
-}
-
-// enforce is used when this trireme-kubernetes process is launched in "Enforce" mode.
-// In this mode, the process is typically launched specifically for one single container
-// in a specific Container namespace.
-func enforce() {
-	zap.L().Info("Launching in enforcer mode")
-
-	if err := controller.LaunchRemoteEnforcer(nil); err != nil {
-		zap.L().Fatal("Unable to start enforcer", zap.Error(err))
-	}
-
-	return
 }
 
 // setLogs setups Zap to the correct log level and correct output format.
@@ -213,6 +206,21 @@ func setLogs(logFormat, logLevel string) error {
 	return nil
 }
 
+func installRemoteEnforcer() {
+
+	if err := remotebuilder.Install(remoteEnforcerTempBuildPath, remoteEnforcerBuildName); err != nil {
+		zap.L().Fatal("Unable to install remoteenforcer binary", zap.Error(err))
+	}
+}
+
+func uninstallRemoteEnforcer() {
+
+	if err := remotebuilder.Uninstall(remoteEnforcerTempBuildPath); err != nil {
+		zap.L().Warn("Unable to uninstall remoteenforcer binary", zap.Error(err))
+	}
+}
+
+
 // main is setting up the basics and check if this process is launched
 // as Enforce or as the Main launcher
 func main() {
@@ -230,9 +238,6 @@ func main() {
 		log.Fatalf("Error setting up logs: %s", err)
 	}
 
-	if config.Enforce {
-		enforce()
-	} else {
-		launch(config)
-	}
+	launch(config)
+
 }
