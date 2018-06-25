@@ -6,6 +6,7 @@ testresults.xml
 Gopkg.lock
 vendor/
 run.sh
+bindata.go
 version/version.go
 deployment/ca-key.pem
 deployment/ca-cert.pem
