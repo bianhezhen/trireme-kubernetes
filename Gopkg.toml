@@ -3,15 +3,15 @@
 ##
 [[constraint]]
   name = "github.com/aporeto-inc/trireme-csr"
-  branch = "master"
+  branch = "trireme_kubernetes"
 
 [[constraint]]
   name = "github.com/aporeto-inc/trireme-statistics"
-  branch = "master"
+  branch = "trireme_kubernetes"
 
 [[constraint]]
   name = "github.com/aporeto-inc/trireme-lib"
-  version  = "^8.0.0"
+  branch  = "kubernetes_monitor"
 
 [[override]]
   name = "github.com/aporeto-inc/netlink-go"

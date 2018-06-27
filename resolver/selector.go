@@ -100,7 +100,7 @@ func portSelector(ports []networking.NetworkPolicyPort) []policy.KeyValueOperato
 
 func namespaceSelector(namespace string) []policy.KeyValueOperator {
 	kvo := policy.KeyValueOperator{
-		Key:      "@namespace",
+		Key:      UpstreamNamespaceIdentifier,
 		Operator: policy.Equal,
 		Value:    []string{namespace},
 	}
@@ -301,13 +301,17 @@ func aclEgressRules(rule networking.NetworkPolicyEgressRule) ([]policy.IPRule, e
 	return aclPolicy, nil
 }
 
-func generateIngressRulesList(ingressKubeRules *[]networking.NetworkPolicyIngressRule, podNamespace string, allNamespaces *api.NamespaceList, tags *policy.TagStore, ips policy.ExtendedMap, triremeNets []string) ([]policy.TagSelector, []policy.IPRule, error) {
+// generateIngressRulesList generates the Trireme receiver rules and ACLs based on a set of Kubernetes IngressRules that apply to a pod.
+func generateIngressRulesList(ingressKubeRules *[]networking.NetworkPolicyIngressRule, podNamespace string, allNamespaces *api.NamespaceList) ([]policy.TagSelector, []policy.IPRule, error) {
+
+	// with rules==nil, it means allow all.
 	if ingressKubeRules == nil {
 		return rulesAndACLsAllowAll()
 	}
 
+	// If there are rules, but length ==0 (meaning no actual rules to allow), then it means deny all.
 	if len(*ingressKubeRules) == 0 {
-		return rulesAndACLsAllowAll()
+		return rulesAndACLsDenyAll()
 	}
 
 	receiverRules := []policy.TagSelector{}
@@ -332,7 +336,7 @@ func generateIngressRulesList(ingressKubeRules *[]networking.NetworkPolicyIngres
 		}
 
 		// Not matching any traffic. Go to next rule
-		if len(rule.From) == 0 || len(rule.Ports) == 0 {
+		if len(rule.From) == 0 {
 			continue
 		}
 
@@ -355,13 +359,15 @@ func generateIngressRulesList(ingressKubeRules *[]networking.NetworkPolicyIngres
 	return receiverRules, ipRules, nil
 }
 
-func generateEgressRulesList(egressKubeRules *[]networking.NetworkPolicyEgressRule, podNamespace string, allNamespaces *api.NamespaceList, tags *policy.TagStore, ips policy.ExtendedMap, triremeNets []string) ([]policy.TagSelector, []policy.IPRule, error) {
+func generateEgressRulesList(egressKubeRules *[]networking.NetworkPolicyEgressRule, podNamespace string, allNamespaces *api.NamespaceList) ([]policy.TagSelector, []policy.IPRule, error) {
+	// with rules==nil, it means allow all.
 	if egressKubeRules == nil {
 		return rulesAndACLsAllowAll()
 	}
 
+	// If there are rules, but length ==0 (meaning no actual rules to allow), then it means deny all.
 	if len(*egressKubeRules) == 0 {
-		return rulesAndACLsAllowAll()
+		return rulesAndACLsDenyAll()
 	}
 
 	transmitterRules := []policy.TagSelector{}
@@ -439,7 +445,7 @@ func namespaceIngressRules(rule *networking.NetworkPolicyIngressRule, podNamespa
 		return nil, nil
 	}
 	clause := policy.KeyValueOperator{
-		Key:      "@namespace",
+		Key:      UpstreamNamespaceIdentifier,
 		Operator: policy.Equal,
 		Value:    allowedNamespaces,
 	}
@@ -485,7 +491,7 @@ func namespaceEgressRules(rule *networking.NetworkPolicyEgressRule, podNamespace
 		return nil, nil
 	}
 	clause := policy.KeyValueOperator{
-		Key:      "@namespace",
+		Key:      UpstreamNamespaceIdentifier,
 		Operator: policy.Equal,
 		Value:    allowedNamespaces,
 	}
@@ -504,20 +510,14 @@ func namespaceEgressRules(rule *networking.NetworkPolicyEgressRule, podNamespace
 // generatePUPolicy creates a PUPolicy representation
 func generatePUPolicy(ingressKubeRules *[]networking.NetworkPolicyIngressRule, egressKubeRules *[]networking.NetworkPolicyEgressRule, podNamespace string, allNamespaces *api.NamespaceList, tags *policy.TagStore, ips policy.ExtendedMap, triremeNets []string) (*policy.PUPolicy, error) {
 
-	ingressRulesList, ingressACLs, err := generateIngressRulesList(ingressKubeRules, podNamespace, allNamespaces, tags, ips, triremeNets)
+	ingressRulesList, ingressACLs, err := generateIngressRulesList(ingressKubeRules, podNamespace, allNamespaces)
 	if err != nil {
 		return nil, fmt.Errorf("Couldn't generate ingress rules: %s", err)
 	}
 
-	// Feature flag for egressPolicies.
-	egressRulesList, egressACLs, err := rulesAndACLsAllowAll()
+	egressRulesList, egressACLs, err := generateEgressRulesList(egressKubeRules, podNamespace, allNamespaces)
 	if err != nil {
-		return nil, fmt.Errorf("Error genrating allowAll policy for egress")
-	}
-
-	egressRulesList, egressACLs, err = generateEgressRulesList(egressKubeRules, podNamespace, allNamespaces, tags, ips, triremeNets)
-	if err != nil {
-		return nil, fmt.Errorf("Couldn't generate ingress rules: %s", err)
+		return nil, fmt.Errorf("Couldn't generate egress rules: %s", err)
 	}
 
 	excluded := []string{}
@@ -558,7 +558,7 @@ func aclsAllowAll() []policy.IPRule {
 func rulesAllowAll() []policy.TagSelector {
 	completeClause := []policy.KeyValueOperator{
 		policy.KeyValueOperator{
-			Key:      "@namespace",
+			Key:      UpstreamNamespaceIdentifier,
 			Operator: policy.Equal,
 			Value:    []string{"*"},
 		},
@@ -573,6 +573,22 @@ func rulesAllowAll() []policy.TagSelector {
 	return []policy.TagSelector{selector}
 }
 
+func rulesAndACLsDenyAll() ([]policy.TagSelector, []policy.IPRule, error) {
+	return rulesDenyAll(), aclsDenyAll(), nil
+}
+
+// aclsDenyAll generate the IPRules used as ACLs outside of Trireme cluster.
+func aclsDenyAll() []policy.IPRule {
+
+	return []policy.IPRule{}
+}
+
+// rulesDenyAll generate the IPRules used as ACLs outside of Trireme cluster.
+func rulesDenyAll() []policy.TagSelector {
+
+	return []policy.TagSelector{}
+}
+
 // allowAllPolicy returns a simple generic policy used in order to not police the PU.
 // example: The NS is not networkPolicy activated.
 func allowAllPolicy(tags *policy.TagStore, ips policy.ExtendedMap, triremeNets []string) *policy.PUPolicy {
@@ -584,11 +600,6 @@ func allowAllPolicy(tags *policy.TagStore, ips policy.ExtendedMap, triremeNets [
 	excluded := []string{}
 
 	return policy.NewPUPolicy("", policy.Police, ingressACLs, egressACLs, nil, receivingRules, tags, tags, ips, triremeNets, excluded, nil, nil, nil, nil)
-}
-
-// notInfraContainerPolicy is a policy that should apply to the other containers in a pod that are not the infra container.
-func notInfraContainerPolicy() *policy.PUPolicy {
-	return policy.NewPUPolicyWithDefaults()
 }
 
 // logRules logs all the rules currently used. Useful for debugging.

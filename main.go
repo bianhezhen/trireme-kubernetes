@@ -116,8 +116,9 @@ func launch(config *config.Configuration) {
 
 	// Monitor configuration
 	monitorOptions := []monitor.Options{
-		monitor.OptionMonitorDocker(
-			monitor.SubOptionMonitorDockerFlags(true, false),
+		monitor.OptionMonitorKubernetes(
+			monitor.SubOptionMonitorKubernetesKubeconfig(config.KubeconfigPath),
+			monitor.SubOptionMonitorKubernetesNodename(config.KubeNodeName),
 		),
 		monitor.OptionPolicyResolver(kubernetesPolicyResolver),
 		monitor.OptionCollector(collectorInstance),
@@ -125,20 +126,26 @@ func launch(config *config.Configuration) {
 
 	m, err := monitor.NewMonitors(monitorOptions...)
 	if err != nil {
-		zap.L().Fatal("Unable to initialize monitor: ", zap.Error(err))
+		zap.L().Fatal("Unable to initialize monitor", zap.Error(err))
 	}
 
+	// Launching Trireme-Kubernetes and the Policy resolver and waiting for thw associarted initial sync to finish theough the chanel
+	// TODO: Use context here instead ?
+	syncChan := make(chan struct{})
+	kubernetesPolicyResolver.Run(syncChan)
+	<-syncChan
+
 	if err := ctrl.Run(ctx); err != nil {
-		zap.L().Fatal("Failed to start controller")
+		zap.L().Fatal("Failed to start controller", zap.Error(err))
 	}
 
 	// Start all the go routines.
 	if err := m.Run(ctx); err != nil {
-		zap.L().Fatal("Failed to start monitor")
+		zap.L().Fatal("Failed to start monitor", zap.Error(err))
 	}
 
 	zap.L().Debug("Trireme started")
-	kubernetesPolicyResolver.Run()
+
 	zap.L().Debug("PolicyResolver started")
 
 	c := make(chan os.Signal, 1)
@@ -149,6 +156,10 @@ func launch(config *config.Configuration) {
 
 	// Cancel al routines that support ctx
 	cancel()
+
+	if err := ctrl.CleanUp(); err != nil {
+		zap.L().Warn("Issue while cleaning up", zap.Error(err))
+	}
 
 	zap.L().Debug("Stop signal received")
 	kubernetesPolicyResolver.Stop()
