@@ -1,3 +1,4 @@
+required = ["github.com/docker/distribution"]
 ##
 ## Aporeto
 ##
@@ -12,6 +13,10 @@
 [[constraint]]
   name = "go.aporeto.io/trireme-lib"
   version  = "^9.0.0"
+
+[[constraint]]
+  name = "github.com/docker/distribution"
+  revision = "b38e5838b7b2f2ad48e06ec4b500011976080621"
 
 [[override]]
   name = "go.aporeto.io/netlink-go"
