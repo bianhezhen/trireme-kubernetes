@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/aporeto-inc/trireme-lib/controller/pkg/tokens"
+	"go.aporeto.io/trireme-lib/controller/pkg/tokens"
 )
 
 var nodeNameGenTests = []struct {

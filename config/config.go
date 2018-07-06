@@ -6,8 +6,8 @@ import (
 	"os"
 	"strings"
 
-	"github.com/aporeto-inc/trireme-lib/controller"
 	"github.com/spf13/viper"
+	"go.aporeto.io/trireme-lib/controller"
 
 	flag "github.com/spf13/pflag"
 )

@@ -10,9 +10,9 @@ import (
 	"github.com/aporeto-inc/trireme-kubernetes/kubernetes"
 
 	"github.com/aporeto-inc/kubepox"
-	"github.com/aporeto-inc/trireme-lib/common"
-	"github.com/aporeto-inc/trireme-lib/controller"
-	"github.com/aporeto-inc/trireme-lib/policy"
+	"go.aporeto.io/trireme-lib/common"
+	"go.aporeto.io/trireme-lib/controller"
+	"go.aporeto.io/trireme-lib/policy"
 
 	api "k8s.io/api/core/v1"
 	networking "k8s.io/api/networking/v1"

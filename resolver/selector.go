@@ -5,7 +5,7 @@ import (
 
 	"go.uber.org/zap"
 
-	"github.com/aporeto-inc/trireme-lib/policy"
+	"go.aporeto.io/trireme-lib/policy"
 
 	api "k8s.io/api/core/v1"
 	networking "k8s.io/api/networking/v1"
